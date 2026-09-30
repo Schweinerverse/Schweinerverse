@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: sitws5-eternal-snow
+    runtime: static
+    buildCommand: echo "static site"
+    staticPublishPath: ./
