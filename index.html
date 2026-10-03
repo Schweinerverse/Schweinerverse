@@ -25,6 +25,11 @@ canvas{display:block}
 #lock{position:fixed;display:none;width:26px;height:26px;border:2px solid var(--gold);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 0 8px #000}
 #hurt{position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(transparent 40%,rgba(160,20,20,.75))}
 #msg{position:fixed;left:0;right:0;top:38%;text-align:center;font-size:clamp(30px,6vw,72px);letter-spacing:.1em;pointer-events:none;opacity:0;transition:opacity .6s;text-shadow:0 2px 18px #000}
+#tp{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,16,26,.62);z-index:9}
+.tpb{background:rgba(14,20,30,.92);border:1px solid rgba(216,181,106,.6);padding:22px 26px;min-width:290px;text-align:center}
+.tpb h2{margin:0 0 14px;font-weight:400;letter-spacing:.12em;color:var(--gold)}.tpb small{font-size:12px;opacity:.7}
+.tpb button{display:block;width:100%;margin:8px 0;padding:10px 14px;background:rgba(216,181,106,.08);border:1px solid rgba(216,181,106,.45);color:var(--ink);font:inherit;font-size:15px;cursor:pointer;text-align:left}
+.tpb button:hover{background:rgba(216,181,106,.22)}.tpb b{color:var(--gold);margin-right:10px}.tpb p{margin:12px 0 0;font-size:12px;opacity:.7}
 </style></head><body>
 <div id="compass"><div id="ctrack"></div><div id="cval"></div></div><div id="hud"><div class="bar" id="hp"><i></i></div><div class="bar" id="st"><i></i></div><div id="area">Frostfall Basin</div><div id="hits"></div></div>
 <div id="help">WASD move &middot; Shift sprint &middot; Space roll<br>Left click / J light combo &middot; Right click / K heavy<br>Mouse or arrow keys: camera &middot; Wheel: zoom<br>Tab / Q / middle click: lock on</div><div id="ebar">Frost Knight<div><i></i></div></div><div id="lock"></div><div id="hurt"></div><div id="msg"></div>
@@ -357,8 +362,19 @@ if(T.EffectComposer&&T.UnrealBloomPass&&T.ShaderPass&&T.RenderPass){try{
 let last=performance.now();
 (function loop(now){requestAnimationFrame(loop);let dt=Math.min(.05,(now-last)/1000);last=now;if(stop>0){stop-=dt;dt=0}update(dt);if(comp){gr.uniforms.t.value=(now*.001)%10;gr.uniforms.dark.value=(1-P.hp/100)*.85;comp.render()}else ren.render(scene,cam)})(last);
 
+// teleport menu (testing): press O ten times in a row
+const TP=[['Frostfall Basin (start)',0,10],['The Frostpass',700,zc1(700)],['Spirefall Heights',1500,zc1(1500)],['Far Eastern Pass',2300,zc1(2300)]];
+let tpOpen=false,oN=0,oT=0;const tpEl=document.createElement('div');tpEl.id='tp';
+tpEl.innerHTML='<div class="tpb"><h2>Teleport <small>(testing)</small></h2>'+TP.map((t,i)=>'<button data-i="'+i+'"><b>'+(i+1)+'</b>'+t[0]+'</button>').join('')+'<p>Press 1-4 or click &middot; Esc to close</p></div>';document.body.appendChild(tpEl);
+tpEl.addEventListener('click',e=>{const b=e.target.closest('button');if(b)tele(+b.dataset.i);else if(e.target===tpEl)closeTp()});
+function openTp(){tpOpen=true;for(const k in keys)keys[k]=false;tpEl.style.display='flex';try{document.exitPointerLock()}catch(_){}}
+function closeTp(){tpOpen=false;tpEl.style.display='none';if(started)try{ren.domElement.requestPointerLock()}catch(_){}}
+function tele(i){const t=TP[i];P.x=t[1];P.z=t[2];P.atk=null;P.roll=null;P.q=null;P.lock=false;yaw=i?-PI/2:0;P.face=i?PI/2:PI;pitch=.35;closeTp();if(started)msg(areaN.toUpperCase(),2000)}
 // input
-addEventListener('keydown',e=>{if(P.dead){if(e.code=='KeyR')respawn();return}keys[e.code]=true;
+addEventListener('keydown',e=>{
+ if(e.code=='KeyO'){if(!e.repeat){const n=performance.now();oN=n-oT<1500?oN+1:1;oT=n;if(oN>=10){oN=0;tpOpen?closeTp():openTp()}}}else if(!e.repeat)oN=0;
+ if(tpOpen){if(/^Digit[1-4]$/.test(e.code))tele(+e.code[5]-1);if(e.code=='Escape')closeTp();e.preventDefault();return}
+ if(P.dead){if(e.code=='KeyR')respawn();return}keys[e.code]=true;
  if(e.code=='Space'){e.preventDefault();const mx=(keys.KeyD?1:0)-(keys.KeyA?1:0),mz=(keys.KeyW?1:0)-(keys.KeyS?1:0);
   const fx=-Math.sin(yaw),fz=-Math.cos(yaw);let dx=fx*mz-fz*mx,dz=fz*mz+fx*mx;const l=Math.hypot(dx,dz);dodge(l?dx/l:0,l?dz/l:0,l)}
  if(e.code=='Tab'||e.code=='KeyQ'){e.preventDefault();toggleLock()}if(e.code=='KeyJ')attack('L');if(e.code=='KeyK')attack('H')});
@@ -366,7 +382,7 @@ addEventListener('keyup',e=>keys[e.code]=false);
 addEventListener('mousemove',e=>{if(document.pointerLockElement){if(!P.lock)yaw-=e.movementX*.003;pitch=Math.max(-.15,Math.min(1.2,pitch+e.movementY*.003))}});
 addEventListener('wheel',e=>{dist=Math.max(3,Math.min(14,dist+e.deltaY*.005))});
 addEventListener('contextmenu',e=>e.preventDefault());
-ren.domElement.addEventListener('mousedown',e=>{if(!started)return;if(e.button==1){e.preventDefault();toggleLock();return}attack(e.button==2?'H':'L')});
+ren.domElement.addEventListener('mousedown',e=>{if(!started||tpOpen)return;if(e.button==1){e.preventDefault();toggleLock();return}attack(e.button==2?'H':'L')});
 $('title').addEventListener('click',()=>{started=true;$('title').style.display='none';msg('FROSTFALL BASIN',3200);try{ren.domElement.requestPointerLock()}catch(_){}});
 addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight);if(comp)comp.setSize(innerWidth,innerHeight)});
 </script></body></html>
