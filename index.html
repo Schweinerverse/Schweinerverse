@@ -32,25 +32,54 @@ canvas{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script>
 const T=THREE,PI=Math.PI,$=id=>document.getElementById(id);
-const LIM=575;
+const SUN=new T.Vector3(.62,.34,.42).normalize(),SV=SUN.toArray().map(x=>x.toFixed(4)).join(',');
+{const F=T.ShaderChunk; // sun-scattered fog: tints distant haze toward the sun
+ if(F.fog_pars_vertex.includes('varying float vFogDepth;')&&F.fog_vertex.includes('vFogDepth = - mvPosition.z;')&&F.fog_pars_fragment.includes('varying float vFogDepth;')&&F.fog_fragment.includes('fogDensity')){
+ F.fog_pars_vertex=F.fog_pars_vertex.replace('varying float vFogDepth;','varying float vFogDepth;varying vec3 vFogDir;');
+ F.fog_vertex=F.fog_vertex.replace('vFogDepth = - mvPosition.z;','vFogDepth = - mvPosition.z;vFogDir=(vec4(mvPosition.xyz,0.)*viewMatrix).xyz;');
+ F.fog_pars_fragment=F.fog_pars_fragment.replace('varying float vFogDepth;','varying float vFogDepth;varying vec3 vFogDir;');
+ F.fog_fragment=`#ifdef USE_FOG
+ float fgd=fogDensity*exp(-max(cameraPosition.y+vFogDir.y,0.)*.011);float fogFactor=1.0-exp(-fgd*fgd*vFogDepth*vFogDepth);
+ float sgl=pow(max(dot(normalize(vFogDir),vec3(${SV})),0.),5.);
+ gl_FragColor.rgb=mix(gl_FragColor.rgb,mix(fogColor,vec3(1.,.84,.64),sgl*.6),fogFactor);
+#endif`}}
+const LIM=575,XMAX=2540,ZN=1440;
 const H0=(x,z)=>{const f=Math.min(1,Math.max(0,(Math.hypot(x,z)-25)/60));return f*(Math.sin(x*.012)*Math.cos(z*.015)*7+Math.sin(x*.035+z*.022)*2.2+Math.sin(z*.06)*Math.sin(x*.05)*.8)};
-const H=(x,z)=>{const d=Math.max(Math.abs(x),Math.abs(z)),e=Math.max(0,(d-480)/100);return H0(x,z)+e*e*45*(1+.4*Math.sin(x*.045+z*.03)*Math.cos(z*.05))};
+const sm=(a,b,x)=>{x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x)};
+const hsh=(x,z)=>{let h=Math.imul(x,374761393)+Math.imul(z,668265263);h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967295};
+const n2=(x,z)=>{const ix=Math.floor(x),iz=Math.floor(z),fx=x-ix,fz=z-iz,u=fx*fx*(3-2*fx),v=fz*fz*(3-2*fz),a=hsh(ix,iz),b=hsh(ix+1,iz),c=hsh(ix,iz+1),d=hsh(ix+1,iz+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v};
+const rid=(x,z)=>{let a=.5,f=1,s=0,w=1;for(let i=0;i<5;i++){let n=1-Math.abs(n2(x*f,z*f)*2-1);n*=n;s+=n*a*w;w=Math.min(1,n*2);a*=.5;f*=2.1}return s};
+// Eastern mountain province: ridged peaks with two winding passes (zc1 main, zc2 north-east branch)
+const zc1=x=>-30+120*Math.sin((x-400)*.0035)+45*Math.sin(x*.011),zc2=x=>-30-(x-900)*.55;
+const MTN=(x,z)=>{if(x<380)return 0;const d=Math.min(Math.abs(z-zc1(x)),x>880?Math.abs(z-zc2(x))*.9:1e9),m=sm(120,420,d),E=sm(380,1000,x);if(m*E<=0)return 0;
+ return(rid(x*.0021,z*.0021)*(400+600*sm(500,1700,x))+60*n2(x*.01,z*.01))*m*E};
+const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-480)/100,(x-2450)/100,(z-480)/100,Math.max(0,(-z-480)/100)*(1-sm(900,1100,x)),(-z-1350)/100));
+ return H0(x,z)+e*e*45*(1+.4*Math.sin(x*.045+z*.03)*Math.cos(z*.05))+MTN(x,z)};
 const R=Math.random;
 const scene=new T.Scene();scene.background=new T.Color(0xb9c6d3);scene.fog=new T.FogExp2(0xb9c6d3,.017);const uT={value:0};
-const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,900);
+const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.2,3500);
 const ren=new T.WebGLRenderer({antialias:true});ren.setSize(innerWidth,innerHeight);ren.setPixelRatio(Math.min(devicePixelRatio,2));
 ren.shadowMap.enabled=true;ren.shadowMap.type=T.PCFSoftShadowMap;ren.toneMapping=T.ACESFilmicToneMapping;ren.toneMappingExposure=1.05;document.body.appendChild(ren.domElement);
-scene.add(new T.HemisphereLight(0xdfe9f5,0x8fa0b5,.9));
-const sun=new T.DirectionalLight(0xfff1dc,.8);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
-Object.assign(sun.shadow.camera,{left:-30,right:30,top:30,bottom:-30,near:1,far:120});scene.add(sun,sun.target);
-const sky=new T.Mesh(new T.SphereGeometry(700,24,12),new T.ShaderMaterial({side:T.BackSide,depthWrite:false,fog:false,
- uniforms:{hz:{value:new T.Color(0xb9c6d3)},zn:{value:new T.Color(0x6d7f97)},sd:{value:new T.Vector3(.47,.78,.31).normalize()}},
+scene.add(new T.HemisphereLight(0xcfdcf0,0x7f92ab,.55));
+const sun=new T.DirectionalLight(0xffe9cf,1.5);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0004;sun.shadow.normalBias=.04;
+Object.assign(sun.shadow.camera,{left:-32,right:32,top:32,bottom:-32,near:1,far:160});scene.add(sun,sun.target);
+const rim=new T.DirectionalLight(0x86a6e8,.45);rim.position.set(-SUN.x*50,SUN.y*20+10,-SUN.z*50);scene.add(rim);
+const elight=new T.PointLight(0xff3b2a,0,16,2);scene.add(elight);
+const skyU={hz:{value:new T.Color(0xb9c6d3)},zn:{value:new T.Color(0x5b6f8c)},sd:{value:SUN},tm:uT};
+const sky=new T.Mesh(new T.SphereGeometry(700,32,16),new T.ShaderMaterial({side:T.BackSide,depthWrite:false,fog:false,uniforms:skyU,
  vertexShader:'varying vec3 vD;void main(){vD=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
- fragmentShader:'uniform vec3 hz,zn,sd;varying vec3 vD;void main(){vec3 d=normalize(vD);float h=clamp(d.y,0.,1.);vec3 c=mix(hz,zn,pow(h,.5));float s=max(dot(d,sd),0.);c+=vec3(1.,.86,.62)*(pow(s,6.)*.18+pow(s,80.)*.45);gl_FragColor=vec4(c,1.);}'}));
+ fragmentShader:`uniform vec3 hz,zn,sd;uniform float tm;varying vec3 vD;
+ float hs(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+ float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hs(i),hs(i+vec2(1.,0.)),f.x),mix(hs(i+vec2(0.,1.)),hs(i+vec2(1.,1.)),f.x),f.y);}
+ float fbm(vec2 p){float a=.5,s=0.;for(int i=0;i<5;i++){s+=a*vn(p);p=p*2.03+7.1;a*=.5;}return s;}
+ void main(){vec3 d=normalize(vD);float h=clamp(d.y,0.,1.);vec3 c=mix(hz,zn,pow(h,.45));float mu=max(dot(d,sd),0.);
+  vec2 cp=d.xz/(d.y+.18)*1.4+vec2(tm*.02,tm*.012);float cl=smoothstep(.35,.85,fbm(cp)+.2*fbm(cp*3.));cl*=smoothstep(-.05,.25,d.y);
+  vec3 cc=mix(vec3(.62,.68,.76),vec3(.96,.95,.93),pow(mu,.5)*.8+h*.3);c=mix(c,cc,cl*.85);
+  c+=vec3(1.,.8,.55)*(pow(mu,4.)*.22+pow(mu,64.)*.5*(1.-cl*.7));c=mix(c,hz,pow(1.-h,4.)*.6);gl_FragColor=vec4(c,1.);}`}));
 sky.renderOrder=-1;sky.frustumCulled=false;scene.add(sky);
 
 // terrain
-const tg=new T.PlaneGeometry(1400,1400,220,220);tg.rotateX(-PI/2);
+const tg=new T.PlaneGeometry(3400,2200,425,275);tg.rotateX(-PI/2);tg.translate(1000,0,-400);
 const tp=tg.attributes.position;for(let i=0;i<tp.count;i++)tp.setY(i,H(tp.getX(i),tp.getZ(i)));
 tg.computeVertexNormals();
 const gm=new T.MeshStandardMaterial({color:0xeef3fa,roughness:.85});
@@ -62,14 +91,17 @@ gm.onBeforeCompile=sh=>{sh.uniforms.uT=uT;
  sh.fragmentShader='uniform float uT;varying vec3 vWP;varying vec3 vWN;\n'+GN+sh.fragmentShader
   .replace('#include <color_fragment>',`#include <color_fragment>
   diffuseColor.rgb*=mix(vec3(.78,.87,.98),vec3(1.),smoothstep(.2,.8,vn(vWP.xz*.08)+vn(vWP.xz*.6)*.2));
-  float rk=smoothstep(.14,.32,1.-vWN.y+vn(vWP.xz*.3)*.08)*smoothstep(3.,20.,vWP.y);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.34,.37,.42)*(.8+.4*vn(vWP.xz*1.5)),rk);`)
+  float rk=smoothstep(.14,.32,1.-vWN.y+vn(vWP.xz*.3)*.08)*smoothstep(3.,20.,vWP.y);rk*=1.-.5*smoothstep(250.,500.,vWP.y);diffuseColor.rgb=mix(diffuseColor.rgb,mix(vec3(.26,.28,.33),vec3(.5,.47,.45),vn(vec2(vWP.y*.04,vWP.x*.01+vWP.z*.01)))*(.8+.4*vn(vWP.xz*1.5)),rk);`)
   .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
-  float vd=distance(vWP,cameraPosition);float fd=1.-smoothstep(25.,110.,vd);vec2 wq=vWP.xz;float e0=.06,h0=hh(wq);
+  float vd=distance(vWP,cameraPosition);float fd=1.-smoothstep(25.,110.,vd);if(fd>.01){vec2 wq=vWP.xz;float e0=.06,h0=hh(wq);
   vec3 gw=vec3(-(hh(wq+vec2(e0,0.))-h0)/e0,0.,-(hh(wq+vec2(0.,e0))-h0)/e0);
-  normal=normalize(normal+(mat3(viewMatrix)*gw)*.45*fd);`)
+  normal=normalize(normal+(mat3(viewMatrix)*gw)*.45*fd);}`)
   .replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
   float hsp=hs(floor(vWP.xz*45.));float sp=step(.982,hsp)*(.5+.5*sin(uT*2.5+hsp*60.))*(1.-smoothstep(10.,60.,vd));
-  totalEmissiveRadiance+=vec3(.9,.95,1.)*sp*.8;`)};
+  totalEmissiveRadiance+=vec3(.9,.95,1.)*sp*.8;`)
+  .replace('#include <lights_fragment_end>',`#include <lights_fragment_end>
+  float ndlS=dot(normal,normalize((viewMatrix*vec4(vec3(${SV}),0.)).xyz));reflectedLight.indirectDiffuse+=diffuseColor.rgb*vec3(.32,.5,.85)*(1.-clamp(ndlS,0.,1.))*.22;
+  float fres=pow(1.-clamp(dot(normal,normalize(vViewPosition)),0.,1.),4.);reflectedLight.indirectSpecular+=vec3(.7,.8,1.)*fres*.12;`)};
 const ground=new T.Mesh(tg,gm);ground.receiveShadow=true;scene.add(ground);
 
 // trees & rocks
@@ -96,9 +128,12 @@ tm.onBeforeCompile=sh=>{sh.uniforms.uT=uT;
  transformed.x+=sin(uT*1.5+iw.x*.25+iw.z*.2)*.02*sw;transformed.z+=cos(uT*1.2+iw.z*.25)*.012*sw;`);
  sh.fragmentShader='varying float vTy;\n'+sh.fragmentShader.replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
  vec3 wn=normalize((vec4(normal,0.)*viewMatrix).xyz);float sn=smoothstep(.15,.7,wn.y+(vTy+.5)*.25-.1);
- diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.93,.96,1.),sn*.75);`)};
+ diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.93,.96,1.),sn*.75);`)
+ .replace('#include <lights_fragment_end>',`#include <lights_fragment_end>
+ float nd2=dot(normal,normalize((viewMatrix*vec4(vec3(${SV}),0.)).xyz));reflectedLight.indirectDiffuse+=diffuseColor.rgb*vec3(.9,1.,.85)*max(-nd2,0.)*.18;`)};
 const CH=100,chunks=[],bk={};
 for(let i=0;i<1600;i++){const x=(R()-.5)*1300,z=(R()-.5)*1300;if(Math.hypot(x,z)<35||Math.max(Math.abs(x),Math.abs(z))>520)continue;(bk[Math.floor(x/CH)+','+Math.floor(z/CH)]??=[]).push([x,z,9+R()*7,R()*6.28])}
+for(let i=0;i<2600;i++){const x=470+R()*2000,z=-1300+R()*1800,y=H(x,z);if(y>50||Math.abs(H(x+5,z)-y)>3.5||Math.abs(H(x,z+5)-y)>3.5)continue;(bk[Math.floor(x/CH)+','+Math.floor(z/CH)]??=[]).push([x,z,9+R()*8,R()*6.28])}
 function buildTrees(tgeo){const m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler();
 for(const k in bk){const a=bk[k],im=new T.InstancedMesh(tgeo,tm,a.length);im.frustumCulled=false;
  a.forEach((t,i)=>{e.set(0,t[3],0);q.setFromEuler(e);m4.compose(new T.Vector3(t[0],H(t[0],t[1])+t[2]*.35,t[1]),q,new T.Vector3(t[2],t[2],t[2]));im.setMatrixAt(i,m4)});
@@ -109,7 +144,8 @@ for(let d=0;d<360;d+=15){const e=document.createElement('span'),L={0:'N',45:'NE'
 function compassUpdate(){const h=(((PI-P.face)*180/PI)%360+360)%360;
  for(const [e,d] of cItems){const x=((d-h+540)%360)-180;e.style.transform='translateX(calc(-50% + '+x*2.4+'px))';e.style.opacity=Math.max(0,1-Math.abs(x)/62)}
  $('cval').textContent=['N','NE','E','SE','S','SW','W','NW'][Math.round(h/45)%8]+' '+Math.round(h)+'\u00b0'}
-let edgeT=0;function edgeCheck(){edgeT-=1/60;if(edgeT<0&&(Math.abs(P.x)>LIM-6||Math.abs(P.z)>LIM-6)){edgeT=5;msg('The storm and the mountains bar the way',2400,'Other regions of Eternal Snow are yet to be opened')}}
+let areaN='Frostfall Basin';function areaUpdate(){const n=P.x<430?'Frostfall Basin':P.x<1100?'The Frostpass':'Spirefall Heights';if(n!=areaN){areaN=n;$('area').textContent=n;msg(n.toUpperCase(),2800)}}
+let edgeT=0;function edgeCheck(){edgeT-=1/60;if(edgeT<0&&(P.x<-LIM+6||P.z>LIM-6||P.x>XMAX-6||P.z<-ZN+6)){edgeT=5;msg('The storm and the mountains bar the way',2400,'Other regions of Eternal Snow are yet to be opened')}}
 function treeUpdate(){for(const c of chunks){const d=Math.hypot(c.cx-P.x,c.cz-P.z);c.m.visible=d<210;c.m.castShadow=d<45}}
 place(new T.InstancedMesh(new T.IcosahedronGeometry(1,0),new T.MeshStandardMaterial({color:0x9aa3ad,roughness:1,flatShading:true}),200),200,()=>({x:1+R()*3,h:.6+R()*1.5,y:.1}));
 
@@ -154,13 +190,24 @@ const cape=new T.Group();cape.position.set(0,.8,-.2);torsoG.add(cape);
 for(let i=0;i<7;i++){const L=[.95,.7,.88,.62,.9,.72,.98][i],g=new T.Group();g.position.x=(i-3)*.105;g.rotation.z=(i-3)*.02;pc(BX(.11,L,.03),MK,0,-L/2,0,g);cape.add(g)}
 // sword slot: replace the contents of this group with your GLB model later
 const swordSlot=new T.Group();swordSlot.position.set(0,-.7,.05);swordSlot.rotation.x=1.4;armR.add(swordSlot);
-box(.08,1.1,.03,0xdfe6ee,0,.65,0,swordSlot);box(.34,.06,.08,0xd8b56a,0,.1,0,swordSlot);box(.06,.22,.06,0x4a3a30,0,-.05,0,swordSlot);
+{const MB=mt(0xc9d2dc,.25,.9);pc(BX(.11,1.25,.025),MB,0,1.125,0,swordSlot);pc(BX(.03,1.1,.03),mt(0x8894a2,.3,.9),0,1.1,0,swordSlot);pc(new T.ConeGeometry(.055,.16,4),MB,0,1.83,0,swordSlot,1,1,.25);
+ pc(BX(.46,.06,.1),MG,0,.5,0,swordSlot);pc(BX(.055,.62,.055),MD,0,.17,0,swordSlot);pc(SP,MG,0,-.17,0,swordSlot,.07,.07,.07)}
+// sword trail (additive ribbon, glows through bloom)
+const TN=14,tv=new Float32Array(TN*6),tcol=new Float32Array(TN*6),tgm=new T.BufferGeometry(),tix=[],hist=[],tipP=new T.Vector3(),baseP=new T.Vector3();
+for(let i=0;i<TN;i++){const f=Math.pow(1-i/(TN-1),1.6);for(let k=0;k<2;k++){tcol.set([.7*f,.88*f,1*f],i*6+k*3)}if(i<TN-1){const a=i*2;tix.push(a,a+1,a+2,a+1,a+3,a+2)}}
+tgm.setAttribute('position',new T.BufferAttribute(tv,3));tgm.setAttribute('color',new T.BufferAttribute(tcol,3));tgm.setIndex(tix);
+const trail=new T.Mesh(tgm,new T.MeshBasicMaterial({vertexColors:true,side:T.DoubleSide,blending:T.AdditiveBlending,transparent:true,depthWrite:false,fog:false}));trail.frustumCulled=false;scene.add(trail);
+function trailUpdate(on){root.updateMatrixWorld(true);
+ if(on){tipP.set(0,1.75,0);baseP.set(0,.8,0);swordSlot.localToWorld(tipP);swordSlot.localToWorld(baseP);hist.unshift([tipP.x,tipP.y,tipP.z,baseP.x,baseP.y,baseP.z])}else hist.pop();
+ while(hist.length>TN)hist.pop();
+ for(let i=0;i<TN;i++)tv.set(hist[Math.min(i,hist.length-1)]||[0,-999,0,0,-999,0],i*6);
+ tgm.attributes.position.needsUpdate=true}
 window.attachSword=obj=>{while(swordSlot.children.length)swordSlot.remove(swordSlot.children[0]);swordSlot.add(obj)};
 
 // training dummy
 const dummy=new T.Group(),dx0=7,dz0=-6;dummy.position.set(dx0,H(dx0,dz0),dz0);scene.add(dummy);
 box(.3,2.2,.3,0x6b4f36,0,1.1,0,dummy);box(1.4,.2,.2,0x6b4f36,0,1.6,0,dummy);box(.5,.5,.5,0xc9b28a,0,2.4,0,dummy);
-let wob=0;
+let wob=0,stop=0,shake=0;
 // enemy: Frost Knight
 const E={g:new T.Group(),x:-16,z:-24,face:0,hp:150,max:150,s:'idle',t:0,cd:1,atk:null,hit:false,dead:0,flash:0,last:'',mats:[]};
 E.g.rotation.order='YXZ';scene.add(E.g);
@@ -180,10 +227,10 @@ let msgT;function msg(t,ms,sub){const m=$('msg');m.innerHTML=t+(sub?'<div style=
 function respawnEnemy(){E.hp=E.max;E.dead=0;E.s='idle';E.x=-16;E.z=-24;E.g.rotation.x=0;E.atk=null;E.cd=1}
 function respawn(){P.dead=false;P.hp=100;P.st=100;P.x=0;P.z=10;P.face=PI;P.atk=null;P.roll=null;P.q=null;respawnEnemy();$('msg').style.opacity=0}
 function hurt(n){const r=P.roll;if(P.dead||(r&&r.t>.08&&r.t<.7))return;
- P.hp-=n;P.atk=null;P.q=null;$('hurt').style.opacity=.9;
+ P.hp-=n;P.atk=null;P.q=null;$('hurt').style.opacity=.9;shake=.5;
  if(P.hp<=0){P.hp=0;P.dead=true;P.roll=null;P.lock=false;for(const k in keys)keys[k]=false;msg('YOU DIED',0,'Press R to rise again')}}
 function hitEnemy(dm){if(E.dead>0)return;const ox=E.x-P.x,oz=E.z-P.z,dd=Math.hypot(ox,oz);
- if(dd<3.6&&(ox*Math.sin(P.face)+oz*Math.cos(P.face))/dd>.3){E.hp-=dm;E.flash=.15;if(E.s=='idle')E.s='chase';
+ if(dd<3.9&&(ox*Math.sin(P.face)+oz*Math.cos(P.face))/dd>.3){E.hp-=dm;E.flash=.15;stop=dm>50?.13:.07;shake=dm>50?.5:.25;if(E.s=='idle')E.s='chase';
   if(E.s=='atk'&&E.atk.n=='slash'&&E.t<E.atk.wind){E.s='chase';E.cd=.7;E.atk=null}
   if(E.hp<=0){E.hp=0;E.dead=10;P.lock=false;msg('ENEMY FELLED',2800)}}}
 function toggleLock(){if(P.lock){P.lock=false;return}if(E.dead>0||P.dead)return;if(Math.hypot(E.x-P.x,E.z-P.z)<40)P.lock=true}
@@ -195,7 +242,7 @@ function lockUpdate(dt){
  const h=$('hurt');h.style.opacity=Math.max(0,(+h.style.opacity||0)-dt*2)}
 function enemyUpdate(dt){
  const gy=H(E.x,E.z),bar=$('ebar');
- if(E.dead>0){E.dead-=dt;E.g.rotation.x=Math.min(1.5,E.g.rotation.x+dt*3);glow(0,0);bar.style.display='none';
+ if(E.dead>0){E.dead-=dt;E.g.rotation.x=Math.min(1.5,E.g.rotation.x+dt*3);glow(0,0);elight.intensity=0;bar.style.display='none';
   if(E.dead<=0)respawnEnemy();E.g.position.set(E.x,gy,E.z);return}
  const dx=P.x-E.x,dz=P.z-E.z,d=Math.hypot(dx,dz),want=Math.atan2(dx,dz);
  if(E.s=='idle'&&d<26&&!P.dead)E.s='chase';
@@ -213,8 +260,8 @@ function enemyUpdate(dt){
   else{E.s='chase';E.cd=.5+Math.random()*.6}}
  if(P.dead&&E.s!='idle'){E.s='chase'}
  if(E.flash>0){gc=0xffffff;gk=.6}
- glow(gc,gk);eA.rotation.set(pose[0],0,pose[1]);eT.rotation.y=pose[2];
- E.x=Math.max(-LIM,Math.min(LIM,E.x));E.z=Math.max(-LIM,Math.min(LIM,E.z));
+ glow(gc,gk);elight.color.setHex(gc||0xff3b2a);elight.intensity=gk*7;elight.position.set(E.x,H(E.x,E.z)+2,E.z);eA.rotation.set(pose[0],0,pose[1]);eT.rotation.y=pose[2];
+ E.x=Math.max(-LIM,Math.min(XMAX,E.x));E.z=Math.max(-ZN,Math.min(LIM,E.z));
  E.g.position.set(E.x,H(E.x,E.z),E.z);E.g.rotation.y=E.face;
  bar.querySelector('i').style.width=E.hp/E.max*100+'%';scr(E.x,H(E.x,E.z)+3.1,E.z,bar,d<45)}
 
@@ -223,12 +270,12 @@ function enemyUpdate(dt){
 const P={x:0,z:10,face:PI,hp:100,st:100,stT:0,roll:null,atk:null,combo:0,cT:0,q:null,cyc:0,lock:false,dead:false};
 let yaw=0,pitch=.35,dist=7,started=false,hits=0,dmg=0;const keys={};
 const LIGHT=[
- {dur:.55,w:[.3,.55],A:[-1.5,-1,-.9,0],B:[-1.5,.9,.8,.05],lun:3,dm:20},
- {dur:.55,w:[.3,.55],A:[-1.5,.9,.8,0],B:[-1.5,-1,-.9,.05],lun:3,dm:20},
- {dur:.75,w:[.4,.62],A:[-2.9,0,-.1,-.1],B:[-.4,0,.1,.4],lun:4,dm:30}];
-const HEAVY={dur:1.25,w:[.55,.72],A:[-3.05,-.3,-.5,-.25],B:[-.3,.3,.6,.6],lun:6,dm:60};
-const REST=[-.2,-.12,0,0],ease=x=>x*x*(3-2*x);
-const cost=t=>t=='H'?30:t=='L'?15:25;
+ {dur:.7,w:[.4,.62],A:[-2.2,-.6,-1,.05],B:[-1,.7,.95,.12],lun:3,dm:26},
+ {dur:.7,w:[.4,.62],A:[-2,.6,.95,.05],B:[-.9,-.7,-.95,.12],lun:3,dm:26},
+ {dur:.95,w:[.5,.7],A:[-3,0,-.1,-.15],B:[-.5,0,.1,.5],lun:4.5,dm:38}];
+const HEAVY={dur:1.5,w:[.68,.82],A:[-2,-1,-1.6,-.12],B:[-1.2,.9,1.7,.2],lun:6.5,dm:75};
+const REST=[-.75,0,0,0],ease=x=>x*x*(3-2*x);
+const cost=t=>t=='H'?38:20;
 function spend(n){if(P.st<=0)return false;P.st=Math.max(0,P.st-n);P.stT=.8;return true}
 function attack(t){if(!started||P.roll||P.dead)return;
  if(P.atk){if(P.atk.t>.4)P.q=t;return}
@@ -243,37 +290,39 @@ function update(dt){
  const mx=(keys.KeyD?1:0)-(keys.KeyA?1:0),mz=(keys.KeyW?1:0)-(keys.KeyS?1:0);
  if(!P.lock){if(keys.ArrowLeft)yaw+=dt*2;if(keys.ArrowRight)yaw-=dt*2}if(keys.ArrowUp)pitch=Math.min(1.2,pitch+dt*1.5);if(keys.ArrowDown)pitch=Math.max(-.15,pitch-dt*1.5);
  const fx=-Math.sin(yaw),fz=-Math.cos(yaw);let dx=fx*mz-fz*mx,dz=fz*mz+fx*mx;const l=Math.hypot(dx,dz);if(l){dx/=l;dz/=l}
- let speed=0,sprint=false,rigX=0;enemyUpdate(dt);lockUpdate(dt);treeUpdate();edgeCheck();compassUpdate();
+ let speed=0,sprint=false,rigX=0;enemyUpdate(dt);lockUpdate(dt);treeUpdate();edgeCheck();compassUpdate();areaUpdate();
  if(P.roll){const r=P.roll;r.t+=dt/.55;speed=11*(1-r.t*.55);dx=r.dx;dz=r.dz;if(r.t>=1)P.roll=null;else rigX=r.t*2*PI}
  else if(P.atk){const a=P.atk,d=a.d;a.t+=dt/d.dur;
   if(a.t>=d.w[0]&&a.t<d.w[1]){speed=d.lun;dx=Math.sin(P.face);dz=Math.cos(P.face)}else{dx=dz=0}
   if(!a.hit&&a.t>=(d.w[0]+d.w[1])/2){a.hit=true;
    const ox=dummy.position.x-P.x,oz=dummy.position.z-P.z,dd=Math.hypot(ox,oz);
-   if(dd<3.4&&(ox*Math.sin(P.face)+oz*Math.cos(P.face))/dd>.3){wob=1;hits++;dmg+=d.dm}hitEnemy(d.dm)}
+   if(dd<3.8&&(ox*Math.sin(P.face)+oz*Math.cos(P.face))/dd>.3){wob=1;hits++;dmg+=d.dm}hitEnemy(d.dm)}
   if(a.t>=1){P.atk=null;if(P.q){const q=P.q;P.q=null;attack(q)}}}
  else{
   if(l){sprint=keys.ShiftLeft&&P.st>0;speed=sprint?8.5:4.6;if(!P.lock)P.face=lerpA(P.face,Math.atan2(dx,dz),Math.min(1,dt*12));if(sprint)P.st=Math.max(0,P.st-16*dt),P.stT=.8}
   else dx=dz=0}
- P.x=Math.max(-LIM,Math.min(LIM,P.x+dx*speed*dt));P.z=Math.max(-LIM,Math.min(LIM,P.z+dz*speed*dt));
+ {const nx=Math.max(-LIM,Math.min(XMAX,P.x+dx*speed*dt)),nz=Math.max(-ZN,Math.min(LIM,P.z+dz*speed*dt)),h0=H(P.x,P.z),ok=(a,b)=>{const st=Math.hypot(a-P.x,b-P.z);return st<1e-5||(H(a,b)-h0)/st<1.15};
+  if(ok(nx,nz)){P.x=nx;P.z=nz}else if(ok(nx,P.z))P.x=nx;else if(ok(P.x,nz))P.z=nz}
  if(!P.atk&&!P.roll){P.cT+=dt;if(P.cT>.6)P.combo=0}
  if(!sprint&&!P.roll&&!P.atk){P.stT-=dt;if(P.stT<=0)P.st=Math.min(100,P.st+28*dt)}
  // pose
  P.cyc+=speed*dt*(P.roll?0:1.4);const s=Math.sin(P.cyc),amp=speed>0&&!P.roll&&!P.atk?.8:0;
- legL.rotation.x=s*amp;legR.rotation.x=-s*amp;armL.rotation.x=-s*amp*.7;armR.rotation.set(-.2-s*amp*.5*-1,-.12,-.12);
- torsoG.rotation.y=0;rig.position.y=.9;rig.rotation.x=0;
- armR.rotation.set(-.2+(amp?s*amp*.7:0),0,-.12);
+ const CV=.62,arms=(r,sd)=>{armR.rotation.set(r,0,CV+sd);armL.rotation.set(r,0,-CV+sd)};
+ legL.rotation.x=s*amp;legR.rotation.x=-s*amp;
+ torsoG.rotation.y=0;rig.position.y=.9;rig.rotation.x=0;arms(-.75+s*amp*.06,0);
  if(P.atk){const a=P.atk,d=a.d,t=a.t;let f,g,u;
   if(t<d.w[0]){f=REST;g=d.A;u=ease(t/d.w[0])}else if(t<d.w[1]){f=d.A;g=d.B;u=Math.pow((t-d.w[0])/(d.w[1]-d.w[0]),.7)}else{f=d.B;g=REST;u=ease((t-d.w[1])/(1-d.w[1]))}
-  const p=f.map((v,i)=>v+(g[i]-v)*u);armR.rotation.set(p[0],0,p[1]);torsoG.rotation.y=p[2];rig.rotation.x=p[3];armL.rotation.x=-.6}
- if(P.roll){rig.rotation.x=rigX;rig.position.y=.65;legL.rotation.x=legR.rotation.x=-1.3;armL.rotation.x=armR.rotation.x=-1.2}
+  const p=f.map((v,i)=>v+(g[i]-v)*u);arms(p[0],p[1]);torsoG.rotation.y=p[2];rig.rotation.x=p[3];
+  const k=t<d.w[1]?ease(t/d.w[1]):1-ease((t-d.w[1])/(1-d.w[1]));legL.rotation.x=-.45*k;legR.rotation.x=.35*k;rig.position.y=.9-.09*k}
+ if(P.roll){rig.rotation.x=rigX;rig.position.y=.65;legL.rotation.x=legR.rotation.x=-1.3;arms(-1.2,0)}
  if(P.dead){rig.rotation.x=-1.45;rig.position.y=.25}cape.rotation.x=.15+Math.min(speed,9)*.06+Math.sin(P.cyc*.5)*.05;const ct=performance.now()*.004;cape.children.forEach((c,i)=>{c.rotation.x=Math.sin(ct*(1+speed*.1)+i*.9)*.07*(1+speed*.2)});
- const gy=H(P.x,P.z);root.position.set(P.x,gy,P.z);root.rotation.y=P.face;
+ const gy=H(P.x,P.z);root.position.set(P.x,gy,P.z);root.rotation.y=P.face;trailUpdate(!!(P.atk&&P.atk.t>=P.atk.d.w[0]*.85&&P.atk.t<P.atk.d.w[1]+.12));
  wob=Math.max(0,wob-dt*2.2);dummy.rotation.z=Math.sin(performance.now()*.03)*wob*.28;
  // camera
  const tx=P.x,ty=gy+1.7,tz=P.z;
  const cx=tx+Math.sin(yaw)*Math.cos(pitch)*dist,cz=tz+Math.cos(yaw)*Math.cos(pitch)*dist,cy=Math.max(ty+Math.sin(pitch)*dist,H(cx,cz)+.8);
- cam.position.set(cx,cy,cz);cam.lookAt(tx,ty,tz);sky.position.copy(cam.position);
- sun.position.set(P.x+30,gy+50,P.z+20);sun.target.position.set(P.x,gy,P.z);
+ cam.position.set(cx+(R()-.5)*shake,cy+(R()-.5)*shake,cz);cam.lookAt(tx,ty,tz);sky.position.copy(cam.position);shake=Math.max(0,shake-dt*2);
+ sun.position.set(P.x+SUN.x*70,gy+SUN.y*70,P.z+SUN.z*70);sun.target.position.set(P.x,gy,P.z);
  // snow
  const tt=performance.now()*.001,wind=2.5+2*Math.sin(tt*.35)+Math.sin(tt*.9);uT.value=tt;
  scene.fog.density=.017+.006*Math.sin(tt*.21)+.004*Math.sin(tt*.6);
@@ -296,7 +345,7 @@ if(T.EffectComposer&&T.UnrealBloomPass&&T.ShaderPass&&T.RenderPass){try{
  comp.addPass(gr);ren.toneMapping=T.NoToneMapping;
 }catch(e){comp=null;gr=null;console.warn('postfx off',e)}}
 let last=performance.now();
-(function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-last)/1000);last=now;update(dt);if(comp){gr.uniforms.t.value=(now*.001)%10;gr.uniforms.dark.value=(1-P.hp/100)*.85;comp.render()}else ren.render(scene,cam)})(last);
+(function loop(now){requestAnimationFrame(loop);let dt=Math.min(.05,(now-last)/1000);last=now;if(stop>0){stop-=dt;dt=0}update(dt);if(comp){gr.uniforms.t.value=(now*.001)%10;gr.uniforms.dark.value=(1-P.hp/100)*.85;comp.render()}else ren.render(scene,cam)})(last);
 
 // input
 addEventListener('keydown',e=>{if(P.dead){if(e.code=='KeyR')respawn();return}keys[e.code]=true;
