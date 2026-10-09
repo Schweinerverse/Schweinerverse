@@ -37,7 +37,7 @@ canvas{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script><script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 <script>
 const T=THREE,PI=Math.PI,$=id=>document.getElementById(id);
-const SUN=new T.Vector3(.62,.34,.42).normalize(),SV=SUN.toArray().map(x=>x.toFixed(4)).join(',');
+const SUN=new T.Vector3(-.55,.4,.45).normalize(),SV=SUN.toArray().map(x=>x.toFixed(4)).join(',');
 {const F=T.ShaderChunk; // sun-scattered fog: tints distant haze toward the sun
  if(F.fog_pars_vertex.includes('varying float vFogDepth;')&&F.fog_vertex.includes('vFogDepth = - mvPosition.z;')&&F.fog_pars_fragment.includes('varying float vFogDepth;')&&F.fog_fragment.includes('fogDensity')){
  F.fog_pars_vertex=F.fog_pars_vertex.replace('varying float vFogDepth;','varying float vFogDepth;varying vec3 vFogDir;');
@@ -55,10 +55,11 @@ const hsh=(x,z)=>{let h=Math.imul(x,374761393)+Math.imul(z,668265263);h=Math.imu
 const n2=(x,z)=>{const ix=Math.floor(x),iz=Math.floor(z),fx=x-ix,fz=z-iz,u=fx*fx*(3-2*fx),v=fz*fz*(3-2*fz),a=hsh(ix,iz),b=hsh(ix+1,iz),c=hsh(ix,iz+1),d=hsh(ix+1,iz+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v};
 const rid=(x,z)=>{let a=.5,f=1,s=0,w=1;for(let i=0;i<5;i++){let n=1-Math.abs(n2(x*f,z*f)*2-1);n*=n;s+=n*a*w;w=Math.min(1,n*2);a*=.5;f*=2.1}return s};
 // Eastern mountain province: ridged peaks with two winding passes (zc1 main, zc2 north-east branch)
-const zc1=x=>-30+120*Math.sin((x-400)*.0035)+45*Math.sin(x*.011),zc2=x=>-30-(x-900)*.55;
-const MTN=(x,z)=>{if(x<380)return 0;const d=Math.min(Math.abs(z-zc1(x)),x>880?Math.abs(z-zc2(x))*.9:1e9),m=sm(120,420,d),E=sm(380,1000,x);if(m*E<=0)return 0;
- return(rid(x*.0021,z*.0021)*(400+600*sm(500,1700,x))+60*n2(x*.01,z*.01))*m*E};
-const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-480)/100,(x-2450)/100,(z-480)/100,Math.max(0,(-z-480)/100)*(1-sm(900,1100,x)),(-z-1350)/100));
+const zc1=x=>-450-450*sm(420,1300,x)+110*Math.sin((x-400)*.004)+45*Math.sin(x*.011); // the pass climbs north-east, then dead-ends in the range
+const MTN=(x,z)=>{if(x<400)return 0;const d=Math.abs(z-zc1(x)),m0=sm(120,650,d),m=1-(1-m0)*(1-sm(1750,1950,x)),E=sm(450,1400,x);if(m*E<=0)return 0;
+ const wx=x+140*n2(x*.0007+3,z*.0007),wz=z+140*n2(x*.0007,z*.0007+9),r=rid(wx*.0015,wz*.0015),mac=.8+.35*n2(x*.0009+5,z*.0009+1);
+ return(500+1500*Math.pow(Math.min(1,r*1.1),1.4)*mac+50*n2(x*.01,z*.01)+rid(x*.011+7,z*.011-3)*110+rid(x*.024-5,z*.024+2)*28)*m*E}; // crags on top of the massifs
+const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-480)/100,(x-2450)/100,(z-480)/100,Math.max(0,(-z-480)/100)*(1-sm(430,650,x)),(-z-1350)/100));
  return H0(x,z)+e*e*45*(1+.4*Math.sin(x*.045+z*.03)*Math.cos(z*.05))+MTN(x,z)};
 const R=Math.random;
 const scene=new T.Scene();scene.background=new T.Color(0xb9c6d3);scene.fog=new T.FogExp2(0xb9c6d3,.017);const uT={value:0};
@@ -84,7 +85,7 @@ const sky=new T.Mesh(new T.SphereGeometry(700,32,16),new T.ShaderMaterial({side:
 sky.renderOrder=-1;sky.frustumCulled=false;scene.add(sky);
 
 // terrain
-const tg=new T.PlaneGeometry(3400,2200,425,275);tg.rotateX(-PI/2);tg.translate(1000,0,-400);
+const tg=new T.PlaneGeometry(3400,2200,525,340);tg.rotateX(-PI/2);tg.translate(1000,0,-400);
 const tp=tg.attributes.position;for(let i=0;i<tp.count;i++)tp.setY(i,H(tp.getX(i),tp.getZ(i)));
 tg.computeVertexNormals();
 const gm=new T.MeshStandardMaterial({color:0xeef3fa,roughness:.85});
@@ -96,11 +97,21 @@ gm.onBeforeCompile=sh=>{sh.uniforms.uT=uT;
  sh.fragmentShader='uniform float uT;varying vec3 vWP;varying vec3 vWN;\n'+GN+sh.fragmentShader
   .replace('#include <color_fragment>',`#include <color_fragment>
   diffuseColor.rgb*=mix(vec3(.78,.87,.98),vec3(1.),smoothstep(.2,.8,vn(vWP.xz*.08)+vn(vWP.xz*.6)*.2));
-  float rk=smoothstep(.14,.32,1.-vWN.y+vn(vWP.xz*.3)*.08)*smoothstep(3.,20.,vWP.y);rk*=1.-.5*smoothstep(250.,500.,vWP.y);diffuseColor.rgb=mix(diffuseColor.rgb,mix(vec3(.26,.28,.33),vec3(.5,.47,.45),vn(vec2(vWP.y*.04,vWP.x*.01+vWP.z*.01)))*(.8+.4*vn(vWP.xz*1.5)),rk);`)
+  float rk=smoothstep(.14,.32,1.-vWN.y+vn(vWP.xz*.3)*.08)*smoothstep(3.,20.,vWP.y);rk*=1.-.5*smoothstep(500.,1300.,vWP.y);diffuseColor.rgb=mix(diffuseColor.rgb,mix(vec3(.26,.28,.33),vec3(.5,.47,.45),vn(vec2(vWP.y*.04,vWP.x*.01+vWP.z*.01)))*(.8+.4*vn(vWP.xz*1.5)),rk);
+  // eastern mountains: bare strata rock, scree and a snow line instead of the soft basin snow
+  float mm=smoothstep(450.,950.,vWP.x);float sl=650.+vn(vWP.xz*.01)*350.;
+  float snw=smoothstep(sl-200.,sl+150.,vWP.y)*smoothstep(.5,.85,vWN.y+vn(vWP.xz*.15)*.2);
+  snw=max(snw,smoothstep(.45,.65,vn(vWP.xz*.02)+vn(vWP.xz*.15)*.25)*smoothstep(.7,.95,vWN.y)*.7);
+  float band=.5+.5*sin(vWP.y*.07+vn(vWP.xz*.01)*6.);
+  vec3 rc=mix(vec3(.17,.17,.19),vec3(.38,.33,.29),band*.8+vn(vWP.xz*.5)*.3);rc=mix(rc,vec3(.5,.5,.52),smoothstep(.8,.95,vWN.y)*.5);
+  diffuseColor.rgb=mix(diffuseColor.rgb,mix(rc,vec3(.93,.96,1.),snw),mm);`)
   .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
   float vd=distance(vWP,cameraPosition);float fd=1.-smoothstep(25.,110.,vd);if(fd>.01){vec2 wq=vWP.xz;float e0=.06,h0=hh(wq);
   vec3 gw=vec3(-(hh(wq+vec2(e0,0.))-h0)/e0,0.,-(hh(wq+vec2(0.,e0))-h0)/e0);
-  normal=normalize(normal+(mat3(viewMatrix)*gw)*.45*fd);}`)
+  normal=normalize(normal+(mat3(viewMatrix)*gw)*.45*fd);}
+  if(mm>.01){vec2 q=vWP.xz*.25;float e1=.3,c0=vn(q)+.5*vn(q*2.3);
+   vec3 g2=vec3(-(vn(q+vec2(e1,0.))+.5*vn((q+vec2(e1,0.))*2.3)-c0),0.,-(vn(q+vec2(0.,e1))+.5*vn((q+vec2(0.,e1))*2.3)-c0))*mm*(1.-smoothstep(60.,300.,vd));
+   normal=normalize(normal+(mat3(viewMatrix)*g2)*1.6);}`)
   .replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
   float hsp=hs(floor(vWP.xz*45.));float sp=step(.982,hsp)*(.5+.5*sin(uT*2.5+hsp*60.))*(1.-smoothstep(10.,60.,vd));
   totalEmissiveRadiance+=vec3(.9,.95,1.)*sp*.8;`)
@@ -138,7 +149,7 @@ tm.onBeforeCompile=sh=>{sh.uniforms.uT=uT;
  float nd2=dot(normal,normalize((viewMatrix*vec4(vec3(${SV}),0.)).xyz));reflectedLight.indirectDiffuse+=diffuseColor.rgb*vec3(.9,1.,.85)*max(-nd2,0.)*.18;`)};
 const CH=100,chunks=[],bk={};
 for(let i=0;i<1600;i++){const x=(R()-.5)*1300,z=(R()-.5)*1300;if(Math.hypot(x,z)<35||Math.max(Math.abs(x),Math.abs(z))>520)continue;(bk[Math.floor(x/CH)+','+Math.floor(z/CH)]??=[]).push([x,z,9+R()*7,R()*6.28])}
-for(let i=0;i<2600;i++){const x=470+R()*2000,z=-1300+R()*1800,y=H(x,z);if(y>50||Math.abs(H(x+5,z)-y)>3.5||Math.abs(H(x,z+5)-y)>3.5)continue;(bk[Math.floor(x/CH)+','+Math.floor(z/CH)]??=[]).push([x,z,9+R()*8,R()*6.28])}
+for(let i=0;i<1100;i++){const x=470+R()*1400,z=-1300+R()*1800,y=H(x,z);if(y>25||Math.abs(H(x+5,z)-y)>3.5||Math.abs(H(x,z+5)-y)>3.5)continue;(bk[Math.floor(x/CH)+','+Math.floor(z/CH)]??=[]).push([x,z,9+R()*8,R()*6.28])}
 function buildTrees(tgeo){const m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler();
 for(const k in bk){const a=bk[k],im=new T.InstancedMesh(tgeo,tm,a.length);im.frustumCulled=false;
  a.forEach((t,i)=>{e.set(0,t[3],0);q.setFromEuler(e);m4.compose(new T.Vector3(t[0],H(t[0],t[1])+t[2]*.35,t[1]),q,new T.Vector3(t[2],t[2],t[2]));im.setMatrixAt(i,m4)});
@@ -153,6 +164,8 @@ let areaN='Frostfall Basin';function areaUpdate(){const n=P.x<430?'Frostfall Bas
 let edgeT=0;function edgeCheck(){edgeT-=1/60;if(edgeT<0&&(P.x<-LIM+6||P.z>LIM-6||P.x>XMAX-6||P.z<-ZN+6)){edgeT=5;msg('The storm and the mountains bar the way',2400,'Other regions of Eternal Snow are yet to be opened')}}
 function treeUpdate(){for(const c of chunks){const d=Math.hypot(c.cx-P.x,c.cz-P.z);c.m.visible=d<210;c.m.castShadow=d<45}}
 place(new T.InstancedMesh(new T.IcosahedronGeometry(1,0),new T.MeshStandardMaterial({color:0x9aa3ad,roughness:1,flatShading:true}),200),200,()=>({x:1+R()*3,h:.6+R()*1.5,y:.1}));
+{const n=1800,im=new T.InstancedMesh(new T.IcosahedronGeometry(1,0),new T.MeshStandardMaterial({color:0x4a4a50,roughness:1,flatShading:true}),n),m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler();let c=0; // boulders strewn across the mountain floors
+ for(let i=0;i<n*3&&c<n;i++){const x=450+R()*1600,z=-1400+R()*1650,y=H(x,z);if(Math.abs(H(x+4,z)-y)>2.5||Math.abs(H(x,z+4)-y)>2.5)continue;const s=1+R()*R()*7;e.set(R()*6,R()*6,R()*6);q.setFromEuler(e);m4.compose(new T.Vector3(x,y+s*.25,z),q,new T.Vector3(s*1.3,s*.8,s));im.setMatrixAt(c++,m4)}im.count=c;scene.add(im)}
 
 // snowfall
 const N=14000,sp=new Float32Array(N*3),sv=new Float32Array(N);
@@ -363,7 +376,7 @@ let last=performance.now();
 (function loop(now){requestAnimationFrame(loop);let dt=Math.min(.05,(now-last)/1000);last=now;if(stop>0){stop-=dt;dt=0}update(dt);if(comp){gr.uniforms.t.value=(now*.001)%10;gr.uniforms.dark.value=(1-P.hp/100)*.85;comp.render()}else ren.render(scene,cam)})(last);
 
 // teleport menu (testing): press O ten times in a row
-const TP=[['Frostfall Basin (start)',0,10],['The Frostpass',700,zc1(700)],['Spirefall Heights',1500,zc1(1500)],['Far Eastern Pass',2300,zc1(2300)]];
+const TP=[['Frostfall Basin (start)',0,10],['The Frostpass',700,zc1(700)],['Spirefall Heights',1500,zc1(1500)],['The Dead-End Pass',1700,zc1(1700)]];
 let tpOpen=false,oN=0,oT=0;const tpEl=document.createElement('div');tpEl.id='tp';
 tpEl.innerHTML='<div class="tpb"><h2>Teleport <small>(testing)</small></h2>'+TP.map((t,i)=>'<button data-i="'+i+'"><b>'+(i+1)+'</b>'+t[0]+'</button>').join('')+'<p>Press 1-4 or click &middot; Esc to close</p></div>';document.body.appendChild(tpEl);
 tpEl.addEventListener('click',e=>{const b=e.target.closest('button');if(b)tele(+b.dataset.i);else if(e.target===tpEl)closeTp()});
