@@ -48,7 +48,7 @@ const SUN=new T.Vector3(-.55,.4,.45).normalize(),SV=SUN.toArray().map(x=>x.toFix
  float sgl=pow(max(dot(normalize(vFogDir),vec3(${SV})),0.),5.);
  gl_FragColor.rgb=mix(gl_FragColor.rgb,mix(fogColor,vec3(1.,.84,.64),sgl*.6),fogFactor);
 #endif`}}
-const LIM=575,XMAX=2540,ZN=1440;
+const LIM=575,XMAX=2540,ZN=1440,CX=-60,CZ=-980,PL=10; // castle centre and plateau height
 const H0=(x,z)=>{const f=Math.min(1,Math.max(0,(Math.hypot(x,z)-25)/60));return f*(Math.sin(x*.012)*Math.cos(z*.015)*7+Math.sin(x*.035+z*.022)*2.2+Math.sin(z*.06)*Math.sin(x*.05)*.8)};
 const sm=(a,b,x)=>{x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x)};
 const hsh=(x,z)=>{let h=Math.imul(x,374761393)+Math.imul(z,668265263);h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967295};
@@ -61,8 +61,8 @@ const MTN=(x,z)=>{const F=sm(380,520,x);if(F<=0)return 0;const d=Math.abs(z-zc1(
  let a=0;for(const p of PK){const q=Math.hypot(x-p[0],z-p[1])/p[3];if(q<1){const c=p[2]*Math.pow(1-q,1.6);a+=c*c*c}}
  const cone=Math.cbrt(a),base=250*sm(450,1300,x),body=base+cone*.85*(.75+.5*rid(x*.003+4,z*.003)),q=Math.min(1,body/400);
  return(body+q*(rid(x*.011+7,z*.011-3)*110+rid(x*.024-5,z*.024+2)*28+40*n2(x*.01,z*.01)))*m*F}; // crags scale with height
-const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-480)/100,(x-2450)/100,(z-480)/100,Math.max(0,(-z-480)/100)*(1-sm(430,650,x)),(-z-1350)/100));
- return H0(x,z)+e*e*45*(1+.4*Math.sin(x*.045+z*.03)*Math.cos(z*.05))+MTN(x,z)};
+const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-480)/100,(x-2450)/100,(z-480)/100,(-z-1350)/100));
+ const h=H0(x,z)+e*e*45*(1+.4*Math.sin(x*.045+z*.03)*Math.cos(z*.05))+MTN(x,z),w=1-sm(215,330,Math.max(Math.abs(x-CX),Math.abs(z-CZ)));return h+(PL-h)*w};
 const R=Math.random;
 const scene=new T.Scene();scene.background=new T.Color(0xb9c6d3);scene.fog=new T.FogExp2(0xb9c6d3,.017);const uT={value:0};
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.2,3500);
@@ -96,6 +96,9 @@ tg.computeVertexNormals();
     snw=Math.max(sm(sl-200,sl+150,y)*sm(.5,.85,ny+n2(x*.15,z*.15)*.2),pat),band=.5+.5*Math.sin(y*.07+n2(x*.01,z*.01)*6),t=band*.8+n2(x*.5,z*.5)*.3,sc=sm(.8,.95,ny)*.4;
    let rr=.24+.26*t,rg=.24+.2*t,rb=.26+.12*t;rr+=(.5-rr)*sc;rg+=(.5-rg)*sc;rb+=(.52-rb)*sc;
    r=1+((rr+(.93-rr)*snw)-1)*mm;g=1+((rg+(.96-rg)*snw)-1)*mm;b=1+((rb+(1-rb)*snw)-1)*mm}
+  {const dx=Math.abs(x-CX),dz=Math.abs(z-CZ);let k=0,v=.5; // cobbled courtyard and the road up to the gate
+   if(dx<174&&dz<174){k=1;v=.42+.16*n2(x*.35,z*.35)}else if(z<-470&&z>CZ+170){const rx=CX+35*Math.sin((z+470)*.013)*sm(CZ+170,CZ+330,z);k=(1-sm(5,9,Math.abs(x-rx)))*.9}
+   if(k>0){r+=(v-r)*k;g+=(v-g)*k;b+=(v*1.03-b)*k}}
   col[i*3]=r;col[i*3+1]=g;col[i*3+2]=b}
  tg.setAttribute('color',new T.BufferAttribute(col,3))}
 const gm=new T.MeshStandardMaterial({color:0xeef3fa,roughness:.85,vertexColors:true});
@@ -122,7 +125,7 @@ const ground=new T.Mesh(tg,gm);ground.receiveShadow=true;scene.add(ground);
 
 // trees & rocks
 const place=(mesh,n,fn)=>{const m=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler();
- for(let i=0;i<n;i++){let x,z;do{x=(R()-.5)*1300;z=(R()-.5)*1300}while(Math.hypot(x,z)<35);
+ for(let i=0;i<n;i++){let x,z;do{x=(R()-.5)*1300;z=(R()-.5)*1300}while(Math.hypot(x,z)<35||(Math.abs(x-CX)<190&&Math.abs(z-CZ)<190));
   const s=fn(i);e.set(0,R()*6.28,0);q.setFromEuler(e);m.compose(new T.Vector3(x,H(x,z)+s.y,z),q,new T.Vector3(s.x,s.h,s.x));mesh.setMatrixAt(i,m)}
  scene.add(mesh)};
 // spruce trees from Spruce1.glb (decimated), chunked instancing
@@ -150,6 +153,7 @@ tm.onBeforeCompile=sh=>{sh.uniforms.uT=uT;
 const CH=100,chunks=[],bk={};
 for(let i=0;i<1600;i++){const x=(R()-.5)*1300,z=(R()-.5)*1300;if(Math.hypot(x,z)<35||Math.max(Math.abs(x),Math.abs(z))>520)continue;(bk[Math.floor(x/CH)+','+Math.floor(z/CH)]??=[]).push([x,z,9+R()*7,R()*6.28])}
 for(let i=0;i<1100;i++){const x=470+R()*1400,z=-1300+R()*1800,y=H(x,z);if(y>25||Math.abs(H(x+5,z)-y)>3.5||Math.abs(H(x,z+5)-y)>3.5)continue;(bk[Math.floor(x/CH)+','+Math.floor(z/CH)]??=[]).push([x,z,9+R()*8,R()*6.28])}
+for(let i=0;i<220;i++){const x=-560+R()*980,z=-1420+R()*900;if(Math.max(Math.abs(x-CX),Math.abs(z-CZ))<350)continue;const rx=CX+35*Math.sin((z+470)*.013)*sm(CZ+170,CZ+330,z);if(Math.abs(x-rx)<16)continue;(bk[Math.floor(x/CH)+','+Math.floor(z/CH)]??=[]).push([x,z,9+R()*8,R()*6.28])} // the marches: far fewer trees
 function buildTrees(tgeo){const m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler();
 for(const k in bk){const a=bk[k],im=new T.InstancedMesh(tgeo,tm,a.length);im.frustumCulled=false;
  a.forEach((t,i)=>{e.set(0,t[3],0);q.setFromEuler(e);m4.compose(new T.Vector3(t[0],H(t[0],t[1])+t[2]*.35,t[1]),q,new T.Vector3(t[2],t[2],t[2]));im.setMatrixAt(i,m4)});
@@ -160,12 +164,89 @@ for(let d=0;d<360;d+=15){const e=document.createElement('span'),L={0:'N',45:'NE'
 function compassUpdate(){const h=(((PI-P.face)*180/PI)%360+360)%360;
  for(const [e,d] of cItems){const x=((d-h+540)%360)-180;e.style.transform='translateX(calc(-50% + '+x*2.4+'px))';e.style.opacity=Math.max(0,1-Math.abs(x)/62)}
  $('cval').textContent=['N','NE','E','SE','S','SW','W','NW'][Math.round(h/45)%8]+' '+Math.round(h)+'\u00b0'}
-let areaN='Frostfall Basin';function areaUpdate(){const n=P.x<430?'Frostfall Basin':P.x<1100?'The Frostpass':'Spirefall Heights';if(n!=areaN){areaN=n;$('area').textContent=n;msg(n.toUpperCase(),2800)}}
+let areaN='Frostfall Basin';function areaUpdate(){const n=P.x<430?(Math.abs(P.x-CX)<176&&Math.abs(P.z-CZ)<176?'Citadel of the Pale Crown':P.z<-520?'The Pale Marches':'Frostfall Basin'):P.x<1100?'The Frostpass':'Spirefall Heights';if(n!=areaN){areaN=n;$('area').textContent=n;msg(n.toUpperCase(),2800)}}
 let edgeT=0;function edgeCheck(){edgeT-=1/60;if(edgeT<0&&(P.x<-LIM+6||P.z>LIM-6||P.x>XMAX-6||P.z<-ZN+6)){edgeT=5;msg('The storm and the mountains bar the way',2400,'Other regions of Eternal Snow are yet to be opened')}}
 function treeUpdate(){for(const c of chunks){const d=Math.hypot(c.cx-P.x,c.cz-P.z);c.m.visible=d<210;c.m.castShadow=d<45}}
 place(new T.InstancedMesh(new T.IcosahedronGeometry(1,0),new T.MeshStandardMaterial({color:0x9aa3ad,roughness:1,flatShading:true}),200),200,()=>({x:1+R()*3,h:.6+R()*1.5,y:.1}));
 {const n=260,im=new T.InstancedMesh(new T.IcosahedronGeometry(1,0),new T.MeshStandardMaterial({color:0x4a4a50,roughness:1,flatShading:true}),n),m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler();let c=0; // boulders strewn across the mountain floors
  for(let i=0;i<n*3&&c<n;i++){const x=450+R()*1600,z=-1400+R()*1650,y=H(x,z);if(Math.abs(H(x+4,z)-y)>2.5||Math.abs(H(x,z+4)-y)>2.5)continue;const s=1+R()*R()*7;e.set(R()*6,R()*6,R()*6);q.setFromEuler(e);m4.compose(new T.Vector3(x,y+s*.25,z),q,new T.Vector3(s*1.3,s*.8,s));im.setMatrixAt(c++,m4)}im.count=c;scene.add(im)}
+// ================= Citadel of the Pale Crown: the castle at the heart of the northern marches =================
+const COLS=[],CB=(x0,x1,z0,z1,h)=>COLS.push([CX+x0,CX+x1,CZ+z0,CZ+z1,PL+h]),CC=(x,z,r,h)=>COLS.push([CX+x,CZ+z,r,PL+h]);
+function collide(o,rad){if(Math.abs(o.x-CX)>300||Math.abs(o.z-CZ)>300)return;
+ for(let it=0;it<2;it++)for(const c of COLS){
+  if(c.length==5){const px=Math.max(c[0],Math.min(c[1],o.x)),pz=Math.max(c[2],Math.min(c[3],o.z)),dx=o.x-px,dz=o.z-pz,d2=dx*dx+dz*dz;
+   if(d2<rad*rad){if(d2>1e-8){const d=Math.sqrt(d2);o.x=px+dx/d*rad;o.z=pz+dz/d*rad}else{const l=o.x-c[0],r=c[1]-o.x,t=o.z-c[2],b=c[3]-o.z,m=Math.min(l,r,t,b);if(m==l)o.x=c[0]-rad;else if(m==r)o.x=c[1]+rad;else if(m==t)o.z=c[2]-rad;else o.z=c[3]+rad}}}
+  else{const dx=o.x-c[0],dz=o.z-c[1],d=Math.hypot(dx,dz),rr=c[2]+rad;if(d<rr){if(d>1e-6){o.x=c[0]+dx/d*rr;o.z=c[1]+dz/d*rr}else o.x=c[0]+rr}}}}
+function inCol(x,z,y){for(const c of COLS){if(y>=c[c.length-1])continue;if(c.length==5){if(x>c[0]-.5&&x<c[1]+.5&&z>c[2]-.5&&z<c[3]+.5)return true}else if(Math.hypot(x-c[0],z-c[1])<c[2]+.5)return true}return false}
+function camFree(tx,ty,tz,cx,cy,cz){if((Math.abs(tx-CX)>330||Math.abs(tz-CZ)>330)&&(Math.abs(cx-CX)>330||Math.abs(cz-CZ)>330))return 1;
+ for(let k=1;k<=16;k++){const t=k/16;if(inCol(tx+(cx-tx)*t,tz+(cz-tz)*t,ty+(cy-ty)*t))return Math.max(.14,(k-1)/16-.05)}return 1}
+const castle=new T.Group();scene.add(castle);
+const mk=(c,r,m)=>new T.MeshStandardMaterial({color:c,roughness:r??.9,metalness:m||0});
+const stoneT=(()=>{const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle='#6f737b';g.fillRect(0,0,256,256);
+ for(let r=0;r<8;r++){const y=r*32,off=(r%2)*32;for(let k=-1;k<5;k++){const v=100+Math.floor(Math.random()*46);g.fillStyle='rgb('+v+','+(v+3)+','+(v+9)+')';g.fillRect(k*64+off+2,y+2,60,28)}}
+ for(let i=0;i<2400;i++){const v=Math.random()*70|0;g.fillStyle='rgba('+v+','+v+','+v+',.2)';g.fillRect(Math.random()*256,Math.random()*256,2,2)}
+ const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=4;return t})();
+const MST=new T.MeshStandardMaterial({map:stoneT,color:0xc9ced6,roughness:.95}),MRF=mk(0x34425a,.8),MSN=mk(0xf4f8ff,1),MWD=mk(0x4a3524,.9),MIR=mk(0x2b2f36,.5,.8),MRD=mk(0x8a1f24,1),MFL=mk(0x6f747c,.95),MGD=mk(0xc9a54a,.4,.8),MGE=mk(0x8b9099,1),MFIRE=new T.MeshBasicMaterial({color:0xff9a3c});MGE.side=T.DoubleSide;
+const UVS=8,MER=[],WIN=[];
+const bxm=(w,h,d,mat,x,y,z)=>{const g=new T.BoxGeometry(w,h,d),uv=g.attributes.uv,f=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];
+ for(let i=0;i<24;i++){const q=f[i>>2];uv.setXY(i,uv.getX(i)*q[0]/UVS,uv.getY(i)*q[1]/UVS)}
+ const m=new T.Mesh(g,mat);m.position.set(CX+x,PL+y,CZ+z);m.castShadow=m.receiveShadow=true;castle.add(m);return m};
+const blk=(x0,x1,z0,z1,y0,y1,mat,col)=>{bxm(x1-x0,y1-y0,z1-z0,mat||MST,(x0+x1)/2,(y0+y1)/2,(z0+z1)/2);if(col)CB(x0,x1,z0,z1,y1)};
+const wmer=(x0,x1,z0,z1,h,single)=>{const hz=(x1-x0)>(z1-z0),lo=hz?x0:z0,hi=hz?x1:z1,ln=single?[hz?(z0+z1)/2:(x0+x1)/2]:hz?[z0+1,z1-1]:[x0+1,x1-1];
+ for(const f of ln)for(let p=lo+2;p<hi-1;p+=5.5)MER.push(hz?[p,h+2.7,f,0]:[f,h+2.7,p,PI/2])};
+const wall=(x0,x1,z0,z1,h,nm)=>{blk(x0,x1,z0,z1,0,h,MST,true);blk(x0-.4,x1+.4,z0-.4,z1+.4,h,h+.7,MSN);if(!nm)wmer(x0,x1,z0,z1,h)};
+const tw=(x,z,r,h,roof=true)=>{const g=new T.CylinderGeometry(r,r*1.05,h,22,1,false),uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*r*6.3/UVS,uv.getY(i)*h/UVS);
+ const m=new T.Mesh(g,MST);m.position.set(CX+x,PL+h/2,CZ+z);m.castShadow=m.receiveShadow=true;castle.add(m);
+ const b=new T.Mesh(new T.CylinderGeometry(r+1.4,r+1.4,2.4,22),MST);b.position.set(CX+x,PL+h,CZ+z);b.castShadow=true;castle.add(b);
+ if(roof){const c=new T.Mesh(new T.ConeGeometry(r+2.2,r*1.9,22),MRF);c.position.set(CX+x,PL+h+1.2+r*.95,CZ+z);c.castShadow=true;castle.add(c)}CC(x,z,r,h)};
+const WN=(x,y,z,ry)=>WIN.push([x,y,z,ry]);
+const braz=(x,z)=>{const p=new T.Mesh(new T.CylinderGeometry(.22,.3,1.8,8),MIR);p.position.set(CX+x,PL+.9,CZ+z);castle.add(p);const f=new T.Mesh(new T.SphereGeometry(.6,8,6),MFIRE);f.position.set(CX+x,PL+2.2,CZ+z);castle.add(f);CC(x,z,.55,2)};
+function gable(x0,x1,z0,z1,wh,rise,rz){const cx=(x0+x1)/2,cz=(z0+z1)/2,W=rz?x1-x0:z1-z0,D=rz?z1-z0:x1-x0,a=Math.atan2(rise,W/2),L=W/2/Math.cos(a)+1.2;
+ for(const s of[-1,1]){const m=rz?bxm(L,1.2,D+2,MRF,cx+s*W/4,wh+rise/2,cz):bxm(D+2,1.2,L,MRF,cx,wh+rise/2,cz+s*W/4);if(rz)m.rotation.z=-s*a;else m.rotation.x=s*a}
+ const sh=new T.Shape();sh.moveTo(-W/2,0);sh.lineTo(W/2,0);sh.lineTo(0,rise);const g=new T.ShapeGeometry(sh);
+ for(const s of[-1,1]){const m=new T.Mesh(g,MGE);m.position.set(CX+(rz?cx:cx+s*D/2),PL+wh,CZ+(rz?cz+s*D/2:cz));if(!rz)m.rotation.y=PI/2;castle.add(m)}}
+const bld=(x0,x1,z0,z1,wh,rise,rz)=>{blk(x0,x1,z0,z1,0,wh,MST,true);gable(x0,x1,z0,z1,wh,rise,rz)};
+// LAYOUT-START (all coordinates are local to the castle centre; +z faces south towards the basin, -z is north)
+{const S=170;
+ // outer curtain wall: main gate south (x -8..8), postern north (10 wide), sally ports east and west (7 wide)
+ wall(-S,-42,165,175,30);wall(42,S,165,175,30);wall(-S,-5,-175,-165,30);wall(5,S,-175,-165,30);
+ wall(165,175,-S,-3.5,30);wall(165,175,3.5,S,30);wall(-175,-165,-S,-3.5,30);wall(-175,-165,3.5,S,30);
+ blk(-5,5,-175,-165,15,30);blk(165,175,-3.5,3.5,15,30);blk(-175,-165,-3.5,3.5,15,30);
+ // great gatehouse: two blocks, a passage 16 wide, an arch bridge above and a raised portcullis
+ wall(-42,-8,154,186,54);wall(8,42,154,186,54);blk(-8,8,154,186,22,54);
+ for(let i=0;i<9;i++){const sp=new T.Mesh(new T.ConeGeometry(.35,3,6),MIR);sp.rotation.x=PI;sp.position.set(CX-7+i*1.75,PL+20.5,CZ+185.5);castle.add(sp)}
+ blk(-30,-22,186,186.7,24,46,MRD);blk(22,30,186,186.7,24,46,MRD);
+ tw(-42,186,11,62);tw(42,186,11,62);tw(-16,-170,7,44);tw(16,-170,7,44);
+ for(const sx of[-1,1])for(const sz of[-1,1])tw(sx*S,sz*S,20,58);
+ for(const o of[-105,105]){tw(o,170,12,44)}for(const o of[-100,100]){tw(o,-170,12,44);tw(170,o,12,44);tw(-170,o,12,44)}
+ // inner ward
+ wall(-80,-26,76,84,38);wall(26,80,76,84,38);wall(-26,-7,67,93,50);wall(7,26,67,93,50);blk(-7,7,67,93,20,50);
+ wall(-80,80,-84,-76,38);wall(76,84,-80,80,38);wall(-84,-76,-80,80,38);
+ for(const sx of[-1,1])for(const sz of[-1,1])tw(sx*80,sz*80,13,64);
+ // the keep: door x -6..6 on the south face, great hall inside, tall tower and spire above
+ wall(-40,-6,28,35,72,1);wall(6,40,28,35,72,1);blk(-6,6,28,35,18,72);wall(-40,40,-45,-38,72,1);wall(33,40,-38,28,72,1);wall(-40,-33,-38,28,72,1);
+ blk(-40,40,-45,35,72,74,MFL);wmer(-40,40,-45,-43,74,1);wmer(-40,40,33,35,74,1);wmer(-40,-38,-45,35,74,1);wmer(38,40,-45,35,74,1);
+ blk(-22,22,-27,17,74,132);{const sp=new T.Mesh(new T.ConeGeometry(30,56,8),MRF);sp.position.set(CX,PL+160,CZ-5);sp.castShadow=true;castle.add(sp);
+  const pl=new T.Mesh(new T.CylinderGeometry(.35,.35,16,6),MIR);pl.position.set(CX,PL+196,CZ-5);castle.add(pl);bxm(10,5,.3,MRD,5,199,-5)}
+ for(const sx of[-1,1])for(const sz of[-1,0.]){const tx=sx*40,tz=sz?-45:35;tw(tx,tz,11,100);for(const yy of[48,74])for(let k=0;k<4;k++){const a=k*PI/2;WN(tx+Math.sin(a)*11.3,yy,tz+Math.cos(a)*11.3,a)}}
+ for(let y=22;y<=58;y+=12){for(const x of[-30,-22,-14,14,22,30])WN(x,y,35.3,0);for(let x=-30;x<=30;x+=10)WN(x,y,-45.3,PI);for(let z=-30;z<=20;z+=10){WN(40.3,y,z,PI/2);WN(-40.3,y,z,-PI/2)}}
+ for(const y of[92,112])for(const x of[-12,0,12]){WN(x,y,17.3,0);WN(x,y,-27.3,PI)}
+ // great hall interior
+ blk(-33,33,-38,28,0,.12,MFL);blk(-33,33,-38,28,58,60,MFL);blk(-4,4,-34,28,.12,.2,MRD);blk(-14,14,-38,-28,.12,.35,MFL);
+ blk(-2.6,2.6,-37,-33,.35,3.2,MGD,true);blk(-2.6,2.6,-37.6,-36.6,3.2,8,MGD);
+ for(const z of[20,8,-4,-16,-28])for(const x of[-14,14])tw(x,z,2.4,58,false);
+ for(const z of[14,-2,-18]){blk(-33,-32.5,z-2.5,z+2.5,22,40,MRD);blk(32.5,33,z-2.5,z+2.5,22,40,MRD)}
+ blk(-6,-5.2,22,28,0,14,MWD);blk(5.2,6,22,28,0,14,MWD);
+ braz(-9,22);braz(9,22);
+ // courtyard buildings leave the main road, the postern road and the sally ports clear
+ bld(-155,-115,25,95,14,12,true);bld(115,155,25,95,14,12,true);bld(30,100,-140,-112,14,10,false);bld(-100,-40,-140,-112,14,10,false);bld(-110,-80,110,140,10,8,true);bld(80,110,110,140,10,8,true);
+ for(const x of[-28,28]){const w=new T.Mesh(new T.CylinderGeometry(3,3.2,1.5,14),MST);w.position.set(CX+x,PL+.75,CZ+125);w.castShadow=true;castle.add(w);CC(x,125,3.4,1.5)}
+ for(const p of[[-10,150],[10,150],[-10,125],[10,125],[-10,100],[10,100],[-8,58],[8,58],[-8,44],[8,44],[-12,205],[12,205]])braz(p[0],p[1]);
+}
+// LAYOUT-END
+{const d=new T.Object3D(),mi=new T.InstancedMesh(new T.BoxGeometry(3.2,4,2),MST,MER.length);MER.forEach((m,i)=>{d.position.set(CX+m[0],PL+m[1],CZ+m[2]);d.rotation.set(0,m[3],0);d.updateMatrix();mi.setMatrixAt(i,d.matrix)});mi.castShadow=true;mi.frustumCulled=false;castle.add(mi);
+ const wi=new T.InstancedMesh(new T.BoxGeometry(1.5,3.2,.5),new T.MeshBasicMaterial({color:0xffc874}),WIN.length);WIN.forEach((m,i)=>{d.position.set(CX+m[0],PL+m[1],CZ+m[2]);d.rotation.set(0,m[3],0);d.updateMatrix();wi.setMatrixAt(i,d.matrix)});wi.frustumCulled=false;castle.add(wi)}
+for(const l of[[-9,22,5],[9,22,5],[0,-26,9]]){const pl=new T.PointLight(0xffa860,1.5,52,2);pl.position.set(CX+l[0],PL+l[1+1],CZ+l[1]);castle.add(pl)}
 
 // snowfall
 const N=14000,sp=new Float32Array(N*3),sv=new Float32Array(N);
@@ -279,7 +360,7 @@ function enemyUpdate(dt){
  if(P.dead&&E.s!='idle'){E.s='chase'}
  if(E.flash>0){gc=0xffffff;gk=.6}
  glow(gc,gk);elight.color.setHex(gc||0xff3b2a);elight.intensity=gk*7;elight.position.set(E.x,H(E.x,E.z)+2,E.z);eA.rotation.set(pose[0],0,pose[1]);eT.rotation.y=pose[2];
- E.x=Math.max(-LIM,Math.min(XMAX,E.x));E.z=Math.max(-ZN,Math.min(LIM,E.z));
+ E.x=Math.max(-LIM,Math.min(XMAX,E.x));E.z=Math.max(-ZN,Math.min(LIM,E.z));collide(E,1);
  E.g.position.set(E.x,H(E.x,E.z),E.z);E.g.rotation.y=E.face;
  bar.querySelector('i').style.width=E.hp/E.max*100+'%';scr(E.x,H(E.x,E.z)+3.1,E.z,bar,d<45)}
 
@@ -333,6 +414,7 @@ function update(dt){
   else dx=dz=0}
  {const nx=Math.max(-LIM,Math.min(XMAX,P.x+dx*speed*dt)),nz=Math.max(-ZN,Math.min(LIM,P.z+dz*speed*dt)),h0=H(P.x,P.z),ok=(a,b)=>{const st=Math.hypot(a-P.x,b-P.z);return st<1e-5||(H(a,b)-h0)/st<1.15};
   if(ok(nx,nz)){P.x=nx;P.z=nz}else if(ok(nx,P.z))P.x=nx;else if(ok(P.x,nz))P.z=nz}
+ collide(P,.55);
  if(!P.atk&&!P.roll){P.cT+=dt;if(P.cT>.6)P.combo=0}
  if(!sprint&&!P.roll&&!P.atk){P.stT-=dt;if(P.stT<=0)P.st=Math.min(100,P.st+28*dt)}
  // pose
@@ -349,11 +431,11 @@ function update(dt){
  // camera
  const tx=P.x,ty=gy+1.7,tz=P.z;
  const cx=tx+Math.sin(yaw)*Math.cos(pitch)*dist,cz=tz+Math.cos(yaw)*Math.cos(pitch)*dist,cy=Math.max(ty+Math.sin(pitch)*dist,H(cx,cz)+.8);
- cam.position.set(cx+(R()-.5)*shake,cy+(R()-.5)*shake,cz);cam.lookAt(tx,ty,tz);sky.position.copy(cam.position);shake=Math.max(0,shake-dt*2);
+ const cf=camFree(tx,ty,tz,cx,cy,cz);cam.position.set(tx+(cx-tx)*cf+(R()-.5)*shake,ty+(cy-ty)*cf+(R()-.5)*shake,tz+(cz-tz)*cf);cam.lookAt(tx,ty,tz);sky.position.copy(cam.position);shake=Math.max(0,shake-dt*2);
  sun.position.set(P.x+SUN.x*70,gy+SUN.y*70,P.z+SUN.z*70);sun.target.position.set(P.x,gy,P.z);
  // snow
- const tt=performance.now()*.001,wind=2.5+2*Math.sin(tt*.35)+Math.sin(tt*.9);uT.value=tt;
- scene.fog.density=.0135+.005*Math.sin(tt*.21)+.003*Math.sin(tt*.6);
+ const zone=sm(-440,-600,P.z)*(1-sm(380,520,P.x)),tt=performance.now()*.001,wind=(2.5+2*Math.sin(tt*.35)+Math.sin(tt*.9))*(1-.4*zone);uT.value=tt;sg.setDrawRange(0,Math.floor(N*(1-.7*zone))); // lighter snowfall in the marches
+ scene.fog.density=(.0135+.005*Math.sin(tt*.21)+.003*Math.sin(tt*.6))*(1-.35*zone);
  for(let i=0;i<N;i++){const j=i*3;sp[j]+=dt*wind*(.6+sv[i]*.2);sp[j+2]+=dt*wind*.35;sp[j+1]-=sv[i]*dt;
   if(sp[j+1]<gy-3)sp[j+1]+=55;if(sp[j+1]>gy+52)sp[j+1]-=55;
   if(sp[j]-P.x>50)sp[j]-=100;if(sp[j]-P.x<-50)sp[j]+=100;if(sp[j+2]-P.z>50)sp[j+2]-=100;if(sp[j+2]-P.z<-50)sp[j+2]+=100}
@@ -376,17 +458,17 @@ let last=performance.now();
 (function loop(now){requestAnimationFrame(loop);let dt=Math.min(.05,(now-last)/1000);last=now;if(stop>0){stop-=dt;dt=0}update(dt);if(comp){gr.uniforms.t.value=(now*.001)%10;gr.uniforms.dark.value=(1-P.hp/100)*.85;comp.render()}else ren.render(scene,cam)})(last);
 
 // teleport menu (testing): press O ten times in a row
-const TP=[['Frostfall Basin (start)',0,10],['The Frostpass',700,zc1(700)],['Spirefall Heights',1500,zc1(1500)],['The Dead-End Pass',1700,zc1(1700)]];
+const TP=[['Frostfall Basin (start)',0,10],['The Frostpass',700,zc1(700)],['Spirefall Heights',1500,zc1(1500)],['The Dead-End Pass',1700,zc1(1700)],['The Pale Marches (road)',CX,-640,'n'],['Castle Gate',CX,CZ+240,'n'],['Castle Courtyard',CX,CZ+120,'n'],['Great Hall',CX,CZ+5,'n']];
 let tpOpen=false,oN=0,oT=0;const tpEl=document.createElement('div');tpEl.id='tp';
-tpEl.innerHTML='<div class="tpb"><h2>Teleport <small>(testing)</small></h2>'+TP.map((t,i)=>'<button data-i="'+i+'"><b>'+(i+1)+'</b>'+t[0]+'</button>').join('')+'<p>Press 1-4 or click &middot; Esc to close</p></div>';document.body.appendChild(tpEl);
+tpEl.innerHTML='<div class="tpb"><h2>Teleport <small>(testing)</small></h2>'+TP.map((t,i)=>'<button data-i="'+i+'"><b>'+(i+1)+'</b>'+t[0]+'</button>').join('')+'<p>Press 1-8 or click &middot; Esc to close</p></div>';document.body.appendChild(tpEl);
 tpEl.addEventListener('click',e=>{const b=e.target.closest('button');if(b)tele(+b.dataset.i);else if(e.target===tpEl)closeTp()});
 function openTp(){tpOpen=true;for(const k in keys)keys[k]=false;tpEl.style.display='flex';try{document.exitPointerLock()}catch(_){}}
 function closeTp(){tpOpen=false;tpEl.style.display='none';if(started)try{ren.domElement.requestPointerLock()}catch(_){}}
-function tele(i){const t=TP[i];P.x=t[1];P.z=t[2];P.atk=null;P.roll=null;P.q=null;P.lock=false;yaw=i?-PI/2:0;P.face=i?PI/2:PI;pitch=.35;closeTp();if(started)msg(areaN.toUpperCase(),2000)}
+function tele(i){const t=TP[i];P.x=t[1];P.z=t[2];P.atk=null;P.roll=null;P.q=null;P.lock=false;const nd=t[3]=='n';yaw=nd?0:i?-PI/2:0;P.face=nd?PI:i?PI/2:PI;pitch=.35;closeTp();if(started)msg(areaN.toUpperCase(),2000)}
 // input
 addEventListener('keydown',e=>{
  if(e.code=='KeyO'){if(!e.repeat){const n=performance.now();oN=n-oT<1500?oN+1:1;oT=n;if(oN>=10){oN=0;tpOpen?closeTp():openTp()}}}else if(!e.repeat)oN=0;
- if(tpOpen){if(/^Digit[1-4]$/.test(e.code))tele(+e.code[5]-1);if(e.code=='Escape')closeTp();e.preventDefault();return}
+ if(tpOpen){if(/^Digit[1-8]$/.test(e.code))tele(+e.code[5]-1);if(e.code=='Escape')closeTp();e.preventDefault();return}
  if(P.dead){if(e.code=='KeyR')respawn();return}keys[e.code]=true;
  if(e.code=='Space'){e.preventDefault();const mx=(keys.KeyD?1:0)-(keys.KeyA?1:0),mz=(keys.KeyW?1:0)-(keys.KeyS?1:0);
   const fx=-Math.sin(yaw),fz=-Math.cos(yaw);let dx=fx*mz-fz*mx,dz=fz*mz+fx*mx;const l=Math.hypot(dx,dz);dodge(l?dx/l:0,l?dz/l:0,l)}
