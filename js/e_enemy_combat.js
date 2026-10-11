@@ -1,5 +1,5 @@
 // state
-const P={x:0,z:10,face:PI,hp:100,st:100,stT:0,roll:null,atk:null,combo:0,cT:0,q:null,cyc:0,lock:false,dead:false,y:0,vy:0};
+const P={x:0,z:10,face:PI,hp:100,st:100,stT:0,roll:null,atk:null,combo:0,cT:0,q:null,cyc:0,lock:false,dead:false,y:0,vy:0,air:false,fy:0,fd:false,sx:0,sz:10,sy:0};
 let yaw=0,pitch=.35,dist=7,started=false,hits=0,dmg=0;const keys={};
 // Swings are keyframed as blade direction (azimuth/elevation) + hands + body twist; arms follow the hands (see hold()).
 // pose = [azimuth, elevation, reach, torso twist, hip twist, lean, crouch, hand height]
@@ -47,7 +47,8 @@ function update(dt){
   else dx=dz=0}
  {const nx=Math.max(-LIM,Math.min(XMAX,P.x+dx*speed*dt)),nz=Math.max(-ZN,Math.min(LIM,P.z+dz*speed*dt)),h0=H(P.x,P.z),ok=(a,b)=>{const st=Math.hypot(a-P.x,b-P.z);return st<1e-5||(H(a,b)-h0)/st<1.15};
   if(ok(nx,nz)){P.x=nx;P.z=nz}else if(ok(nx,P.z))P.x=nx;else if(ok(P.x,nz))P.z=nz}
- collide(P,.55);{const g=groundY(P);if(g>=P.y-.35){P.y=g;P.vy=0}else{P.vy-=45*dt;P.y=Math.max(g,P.y+P.vy*dt)}} // floors, stairs and falling
+ collide(P,.55);{const g=groundY(P);if(g>=P.y-.35){if(P.air){P.air=false;const dr=P.fy-g;if(dr>22)fallHurt(dr)}P.y=g;P.vy=0;if(RVN(P.x,P.z)<.02&&Math.abs(H(P.x+2,P.z)-g)<2.5&&Math.abs(H(P.x,P.z+2)-g)<2.5){P.sx=P.x;P.sz=P.z;P.sy=g}}
+  else{if(!P.air){P.air=true;P.fy=P.y}P.fy=Math.max(P.fy,P.y);P.vy-=45*dt;P.y=Math.max(g,P.y+P.vy*dt)}} // floors, stairs and falling
  if(!P.atk&&!P.roll){P.cT+=dt;if(P.cT>.6)P.combo=0}
  if(!sprint&&!P.roll&&!P.atk){P.stT-=dt;if(P.stT<=0)P.st=Math.min(100,P.st+28*dt)}
  // pose
@@ -67,8 +68,8 @@ function update(dt){
  const cf=camFree(tx,ty,tz,cx,cy,cz);cam.position.set(tx+(cx-tx)*cf+(R()-.5)*shake,ty+(cy-ty)*cf+(R()-.5)*shake,tz+(cz-tz)*cf);cam.lookAt(tx,ty,tz);sky.position.copy(cam.position);shake=Math.max(0,shake-dt*2);
  sun.position.set(P.x+SUN.x*70,gy+SUN.y*70,P.z+SUN.z*70);sun.target.position.set(P.x,gy,P.z);
  // snow
- const zone=sm(-440,-600,P.z)*(1-sm(380,520,P.x)),tt=performance.now()*.001,wind=(2.5+2*Math.sin(tt*.35)+Math.sin(tt*.9))*(1-.4*zone);uT.value=tt;{const inK=Math.abs(P.x-CX)<41&&P.z-CZ>-46&&P.z-CZ<36&&P.y<PL+72;sg.setDrawRange(0,inK?0:Math.floor(N*(1-.7*zone)))} // lighter snowfall in the marches
- scene.fog.density=(.0135+.005*Math.sin(tt*.21)+.003*Math.sin(tt*.6))*(1-.35*zone);
+ const zone=sm(-440,-600,P.z)*(1-sm(380,520,P.x)),z2=sm(-1340,-1500,P.z)*(1-sm(380,520,P.x)),tt=performance.now()*.001,wind=(2.5+2*Math.sin(tt*.35)+Math.sin(tt*.9))*(1-.4*zone+.6*z2);uT.value=tt;{const inK=Math.abs(P.x-CX)<41&&P.z-CZ>-46&&P.z-CZ<36&&P.y<PL+72;sg.setDrawRange(0,inK?0:Math.floor(N*Math.min(1,1-.7*zone+.6*z2)))} // lighter snowfall in the marches
+ scene.fog.density=(.0135+.005*Math.sin(tt*.21)+.003*Math.sin(tt*.6))*(1-.35*zone+.5*z2);
  for(let i=0;i<N;i++){const j=i*3;sp[j]+=dt*wind*(.6+sv[i]*.2);sp[j+2]+=dt*wind*.35;sp[j+1]-=sv[i]*dt;
   if(sp[j+1]<gy-3)sp[j+1]+=55;if(sp[j+1]>gy+52)sp[j+1]-=55;
   if(sp[j]-P.x>50)sp[j]-=100;if(sp[j]-P.x<-50)sp[j]+=100;if(sp[j+2]-P.z>50)sp[j+2]-=100;if(sp[j+2]-P.z<-50)sp[j+2]+=100}
