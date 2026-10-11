@@ -10,7 +10,7 @@ const SUN=new T.Vector3(-.55,.4,.45).normalize(),SV=SUN.toArray().map(x=>x.toFix
  float sgl=pow(max(dot(normalize(vFogDir),vec3(${SV})),0.),5.);
  gl_FragColor.rgb=mix(gl_FragColor.rgb,mix(fogColor,vec3(1.,.84,.64),sgl*.6),fogFactor);
 #endif`}}
-const LIM=575,XMAX=2540,ZN=1440,CX=-60,CZ=-980,PL=10; // castle centre and plateau height
+const LIM=575,XMAX=2540,ZN=2600,CX=-60,CZ=-980,PL=10; // castle centre and plateau height
 const H0=(x,z)=>{const f=Math.min(1,Math.max(0,(Math.hypot(x,z)-25)/60));return f*(Math.sin(x*.012)*Math.cos(z*.015)*7+Math.sin(x*.035+z*.022)*2.2+Math.sin(z*.06)*Math.sin(x*.05)*.8)};
 const sm=(a,b,x)=>{x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x)};
 const hsh=(x,z)=>{let h=Math.imul(x,374761393)+Math.imul(z,668265263);h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967295};
@@ -23,8 +23,16 @@ const MTN=(x,z)=>{const F=sm(380,520,x);if(F<=0)return 0;const d=Math.abs(z-zc1(
  let a=0;for(const p of PK){const q=Math.hypot(x-p[0],z-p[1])/p[3];if(q<1){const c=p[2]*Math.pow(1-q,1.6);a+=c*c*c}}
  const cone=Math.cbrt(a),base=250*sm(450,1300,x),body=base+cone*.85*(.75+.5*rid(x*.003+4,z*.003)),q=Math.min(1,body/400);
  return(body+q*(rid(x*.011+7,z*.011-3)*110+rid(x*.024-5,z*.024+2)*28+40*n2(x*.01,z*.01)))*m*F}; // crags scale with height
-const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-480)/100,(x-2450)/100,(z-480)/100,(-z-1350)/100));
- const h=H0(x,z)+e*e*45*(1+.4*Math.sin(x*.045+z*.03)*Math.cos(z*.05))+MTN(x,z),w=1-sm(215,330,Math.max(Math.abs(x-CX),Math.abs(z-CZ)));return h+(PL-h)*w};
+// The Sundered Reach (north of the castle): winding ravines, chasms and rocky ground, crossed by one narrow stone causeway
+const NM=(x,z)=>sm(-1330,-1450,z)*(1-sm(480,780,x)),PX=z=>CX+60*Math.sin((z+1300)*.0045)*sm(-1310,-1500,z); // area mask, causeway centreline
+const CHASMS=[[-300,-1700,110],[150,-1900,130],[-420,-2100,100],[40,-2250,120],[-200,-2450,90]];
+function RVN(x,z){const m=NM(x,z);if(m<=0)return 0;const wx=x+60*n2(x*.004+8,z*.004),wz=z+60*n2(x*.004,z*.004+3);
+ const a=Math.abs(n2(wx*.0035+11,wz*.0035-4)-.5),b=Math.abs(n2(wx*.0072-3,wz*.0072+9)-.5);let c=Math.max(1-sm(.018,.055,a),(1-sm(.012,.04,b))*.8);
+ for(const k of CHASMS){const d=Math.hypot(x-k[0],z-k[1])/k[2];if(d<1)c=Math.max(c,1-sm(.55,1,d))}
+ return c*m*sm(7,14,Math.abs(x-PX(z)))}
+const NH=(x,z)=>{const m=NM(x,z);if(m<=0)return 0;return m*(n2(x*.005+2,z*.005+7)-.5)*50-RVN(x,z)*(110+60*sm(-1400,-2200,z))};
+const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-480)/100,(x-2450)/100,(z-480)/100,(-z-2500)/100));
+ const h=H0(x,z)+e*e*45*(1+.4*Math.sin(x*.045+z*.03)*Math.cos(z*.05))+MTN(x,z)+NH(x,z),w=1-sm(215,330,Math.max(Math.abs(x-CX),Math.abs(z-CZ)));return h+(PL-h)*w};
 const R=Math.random;
 const scene=new T.Scene();scene.background=new T.Color(0xb9c6d3);scene.fog=new T.FogExp2(0xb9c6d3,.017);const uT={value:0};
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.2,3500);
@@ -49,7 +57,7 @@ const sky=new T.Mesh(new T.SphereGeometry(700,32,16),new T.ShaderMaterial({side:
 sky.renderOrder=-1;sky.frustumCulled=false;scene.add(sky);
 
 // terrain
-const tg=new T.PlaneGeometry(3400,2200,525,340);tg.rotateX(-PI/2);tg.translate(1000,0,-400);
+const tg=new T.PlaneGeometry(3400,3500,525,540);tg.rotateX(-PI/2);tg.translate(1000,0,-1050);
 const tp=tg.attributes.position;for(let i=0;i<tp.count;i++)tp.setY(i,H(tp.getX(i),tp.getZ(i)));
 tg.computeVertexNormals();
 {const nA=tg.attributes.normal,col=new Float32Array(tp.count*3);
@@ -61,6 +69,10 @@ tg.computeVertexNormals();
   {const dx=Math.abs(x-CX),dz=Math.abs(z-CZ);let k=0,v=.5; // cobbled courtyard and the road up to the gate
    if(dx<174&&dz<174){k=1;v=.42+.16*n2(x*.35,z*.35)}else if(z<-470&&z>CZ+170){const rx=CX+35*Math.sin((z+470)*.013)*sm(CZ+170,CZ+330,z);k=(1-sm(5,9,Math.abs(x-rx)))*.9}
    if(k>0){r+=(v-r)*k;g+=(v-g)*k;b+=(v*1.03-b)*k}}
+  {const nm=NM(x,z);if(nm>0){const rv=RVN(x,z),cl=Math.abs(x-PX(z)),cut=Math.max(sm(.04,.5,rv),sm(.82,.55,ny)), // ravine walls and steep ground are bare strata
+    st=sm(.52,.64,n2(x*.011+5,z*.011)+.3*n2(x*.06,z*.06))*nm,band=.5+.5*Math.sin(y*.16+n2(x*.02,z*.02)*5),sv=.28+.14*band+.05*n2(x*.4,z*.4);   // stone patches in the snow
+   const k=Math.max(cut*nm,st*.9);r+=(sv-r)*k;g+=(sv*.98-g)*k;b+=(sv*1.04-b)*k;
+   if(z<-1150&&z>-2430&&cl<5){const f=1-sm(3,5,cl);r+=(.5-r)*f*.9;g+=(.5-g)*f*.9;b+=(.52-b)*f*.9}}} // flagstones along the causeway
   col[i*3]=r;col[i*3+1]=g;col[i*3+2]=b}
  tg.setAttribute('color',new T.BufferAttribute(col,3))}
 const gm=new T.MeshStandardMaterial({color:0xeef3fa,roughness:.85,vertexColors:true});
