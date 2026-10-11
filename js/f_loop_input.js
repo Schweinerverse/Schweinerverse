@@ -12,7 +12,7 @@ let last=performance.now();
 (function loop(now){requestAnimationFrame(loop);let dt=Math.min(.05,(now-last)/1000);last=now;if(stop>0){stop-=dt;dt=0}update(dt);if(comp){gr.uniforms.t.value=(now*.001)%10;gr.uniforms.dark.value=(1-P.hp/100)*.85;comp.render()}else ren.render(scene,cam)})(last);
 
 // teleport menu (testing): press O ten times in a row
-const TP=[['Frostfall Basin (start)',0,10],['The Frostpass',700,zc1(700)],['Spirefall Heights',1500,zc1(1500)],['The Dead-End Pass',1700,zc1(1700)],['The Pale Marches (road)',CX,-640,'n'],['Castle Gate',CX,CZ+240,'n'],['Castle Courtyard',CX,CZ+120,'n'],['Great Hall',CX,CZ+5,'n'],['Floor 1 corridor',CX,CZ,'n',PL+28],['Floor 3 corridor',CX,CZ,'n',PL+56],['Roof terrace',CX+24.5,CZ+10,'n',PL+74]];
+const TP=[['Frostfall Basin (start)',0,10],['The Frostpass',700,zc1(700)],['Spirefall Heights',1500,zc1(1500)],['The Dead-End Pass',1700,zc1(1700)],['The Pale Marches (road)',CX,-640,'n'],['Castle Gate',CX,CZ+240,'n'],['Castle Courtyard',CX,CZ+120,'n'],['Great Hall',CX,CZ+5,'n'],['Floor 1 corridor',CX,CZ,'n',PL+28],['Floor 3 corridor',CX,CZ,'n',PL+56],['Roof terrace',CX+24.5,CZ+10,'n',PL+74],['Sundered Reach: causeway',PX(-1500),-1500,'n'],['Sundered Reach: the gate ring',PX(-2380),-2380,'n']];
 let tpOpen=false,oN=0,oT=0;const tpEl=document.createElement('div');tpEl.id='tp';
 tpEl.innerHTML='<div class="tpb"><h2>Teleport <small>(testing)</small></h2>'+TP.map((t,i)=>'<button data-i="'+i+'"><b>'+(i+1)+'</b>'+t[0]+'</button>').join('')+'<p>Press 1-9 or click &middot; Esc to close</p></div>';document.body.appendChild(tpEl);
 tpEl.addEventListener('click',e=>{const b=e.target.closest('button');if(b)tele(+b.dataset.i);else if(e.target===tpEl)closeTp()});
@@ -24,6 +24,7 @@ addEventListener('keydown',e=>{
  if(e.code=='KeyO'){if(!e.repeat){const n=performance.now();oN=n-oT<1500?oN+1:1;oT=n;if(oN>=10){oN=0;tpOpen?closeTp():openTp()}}}else if(!e.repeat)oN=0;
  if(tpOpen){if(/^Digit[1-9]$/.test(e.code))tele(+e.code[5]-1);if(e.code=='Escape')closeTp();e.preventDefault();return}
  if(P.dead){if(e.code=='KeyR')respawn();return}keys[e.code]=true;
+ if(e.code=='KeyR'&&RVN(P.x,P.z)>.02){P.x=P.sx;P.z=P.sz;P.y=P.sy;P.vy=0;P.air=false;msg('BACK ON SOLID GROUND',1800)}
  if(e.code=='Space'){e.preventDefault();const mx=(keys.KeyD?1:0)-(keys.KeyA?1:0),mz=(keys.KeyW?1:0)-(keys.KeyS?1:0);
   const fx=-Math.sin(yaw),fz=-Math.cos(yaw);let dx=fx*mz-fz*mx,dz=fz*mz+fx*mx;const l=Math.hypot(dx,dz);dodge(l?dx/l:0,l?dz/l:0,l)}
  if(e.code=='Tab'||e.code=='KeyQ'){e.preventDefault();toggleLock()}if(e.code=='KeyJ')attack('L');if(e.code=='KeyK')attack('H')});
