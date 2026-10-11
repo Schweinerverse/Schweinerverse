@@ -74,7 +74,8 @@ const v3=new T.Vector3();
 function scr(x,y,z,el,show){v3.set(x,y,z).project(cam);const ok=show&&v3.z<1&&Math.abs(v3.x)<1.1&&Math.abs(v3.y)<1.1;el.style.display=ok?'block':'none';if(ok){el.style.left=(v3.x*.5+.5)*innerWidth+'px';el.style.top=(-v3.y*.5+.5)*innerHeight+'px'}}
 let msgT;function msg(t,ms,sub){const m=$('msg');m.innerHTML=t+(sub?'<div style="font-size:16px;letter-spacing:.05em;margin-top:8px">'+sub+'</div>':'');m.style.color=t=='YOU DIED'?'#b3392f':'#d8b56a';m.style.opacity=1;clearTimeout(msgT);if(ms)msgT=setTimeout(()=>m.style.opacity=0,ms)}
 function respawnEnemy(){E.hp=E.max;E.dead=0;E.s='idle';E.x=-16;E.z=-24;E.g.rotation.x=0;E.atk=null;E.cd=1}
-function respawn(){P.dead=false;P.hp=100;P.st=100;P.x=0;P.z=10;P.y=H(0,10);P.vy=0;P.face=PI;P.atk=null;P.roll=null;P.q=null;respawnEnemy();$('msg').style.opacity=0}
+function respawn(){P.dead=false;P.hp=100;P.st=100;if(P.fd){P.x=P.sx;P.z=P.sz;P.y=P.sy}else{P.x=0;P.z=10;P.y=H(0,10)}P.fd=false;P.air=false;P.vy=0;P.face=PI;P.atk=null;P.roll=null;P.q=null;respawnEnemy();$('msg').style.opacity=0}
+function fallHurt(d){const n=(d-22)*1.6;if(P.hp-n<=0)P.fd=true;hurt(n);if(!P.dead)msg('A HARD LANDING',2600,'Press R to climb back to solid ground')}
 function hurt(n){const r=P.roll;if(P.dead||(r&&r.t>.08&&r.t<.7))return;
  P.hp-=n;P.atk=null;P.q=null;$('hurt').style.opacity=.9;shake=.5;
  if(P.hp<=0){P.hp=0;P.dead=true;P.roll=null;P.lock=false;for(const k in keys)keys[k]=false;msg('YOU DIED',0,'Press R to rise again')}}
