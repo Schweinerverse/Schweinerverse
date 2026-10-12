@@ -75,25 +75,13 @@ tg.computeVertexNormals();
    if(z<-1150&&z>-2430&&cl<5){const f=1-sm(3,5,cl);r+=(.5-r)*f*.9;g+=(.5-g)*f*.9;b+=(.52-b)*f*.9}}} // flagstones along the causeway
   col[i*3]=r;col[i*3+1]=g;col[i*3+2]=b}
  tg.setAttribute('color',new T.BufferAttribute(col,3))}
-const gm=new T.MeshStandardMaterial({color:0xeef3fa,roughness:.85,vertexColors:true});
-const GN=`float hs(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hs(i),hs(i+vec2(1.,0.)),f.x),mix(hs(i+vec2(0.,1.)),hs(i+vec2(1.,1.)),f.x),f.y);}
-float hh(vec2 p){return vn(p*.35)*.6+vn(p*1.3)*.25+sin((p.x*.8+p.y*.55)*2.5+vn(p*.2)*6.)*.12+vn(p*5.)*.08;}`;
-gm.onBeforeCompile=sh=>{sh.uniforms.uT=uT;
- sh.vertexShader='varying vec3 vWP;varying vec3 vWN;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvWP=(modelMatrix*vec4(transformed,1.)).xyz;vWN=normalize(mat3(modelMatrix)*normal);');
- sh.fragmentShader='uniform float uT;varying vec3 vWP;varying vec3 vWN;\n'+GN+sh.fragmentShader
-  .replace('#include <color_fragment>',`#include <color_fragment>
-  diffuseColor.rgb*=mix(vec3(.78,.87,.98),vec3(1.),smoothstep(.2,.8,vn(vWP.xz*.08)+vn(vWP.xz*.6)*.2));
-  float rk=smoothstep(.14,.32,1.-vWN.y+vn(vWP.xz*.3)*.08)*smoothstep(3.,20.,vWP.y);rk*=(1.-smoothstep(450.,950.,vWP.x))*(1.-.5*smoothstep(500.,1300.,vWP.y));diffuseColor.rgb=mix(diffuseColor.rgb,mix(vec3(.26,.28,.33),vec3(.5,.47,.45),vn(vec2(vWP.y*.04,vWP.x*.01+vWP.z*.01)))*(.8+.4*vn(vWP.xz*1.5)),rk);`)
-  .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
-  float vd=distance(vWP,cameraPosition);float fd=1.-smoothstep(25.,110.,vd);if(fd>.01){vec2 wq=vWP.xz;float e0=.06,h0=hh(wq);
-  vec3 gw=vec3(-(hh(wq+vec2(e0,0.))-h0)/e0,0.,-(hh(wq+vec2(0.,e0))-h0)/e0);
-  normal=normalize(normal+(mat3(viewMatrix)*gw)*.45*fd);}`)
-  .replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
-  float hsp=hs(floor(vWP.xz*45.));float sp=step(.982,hsp)*(.5+.5*sin(uT*2.5+hsp*60.))*(1.-smoothstep(10.,60.,vd));
-  totalEmissiveRadiance+=vec3(.9,.95,1.)*sp*.8;`)
-  .replace('#include <lights_fragment_end>',`#include <lights_fragment_end>
-  float ndlS=dot(normal,normalize((viewMatrix*vec4(vec3(${SV}),0.)).xyz));reflectedLight.indirectDiffuse+=diffuseColor.rgb*vec3(.32,.5,.85)*(1.-clamp(ndlS,0.,1.))*.22;
-  float fres=pow(1.-clamp(dot(normal,normalize(vViewPosition)),0.,1.),4.);reflectedLight.indirectSpecular+=vec3(.7,.8,1.)*fres*.12;`)};
+// ground: a tiling canvas texture (snow drifts, ripples, flecks) used as colour AND bump map, so the snow has visible grain at any distance
+const gt=(()=>{const S=512,c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d');g.fillStyle='#cdd8e4';g.fillRect(0,0,S,S);
+ const wrap=f=>{for(const ox of[-S,0,S])for(const oy of[-S,0,S])f(ox,oy)};
+ for(let i=0;i<260;i++){const x=Math.random()*S,y=Math.random()*S,r=14+Math.random()*46,v=Math.random()<.5?255:140,a=.06+Math.random()*.12;wrap((ox,oy)=>{const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,r);gr.addColorStop(0,'rgba('+v+','+v+','+(v+6)+','+a+')');gr.addColorStop(1,'rgba('+v+','+v+','+(v+6)+',0)');g.fillStyle=gr;g.fillRect(x+ox-r,y+oy-r,2*r,2*r)})}
+ for(let i=0;i<14;i++){const y=Math.random()*S;g.strokeStyle='rgba(255,255,255,.2)';g.lineWidth=2+Math.random()*3;g.beginPath();for(let x=0;x<=S;x+=16){const yy=y+Math.sin(x/S*PI*6+i)*9;if(x==0)g.moveTo(x,yy);else g.lineTo(x,yy)}g.stroke()}
+ for(let i=0;i<5200;i++){const v=Math.random()<.35?255:110+Math.random()*60|0;g.fillStyle='rgba('+v+','+v+','+(v+8)+','+(.1+Math.random()*.18)+')';g.fillRect(Math.random()*S,Math.random()*S,1+Math.random()*2,1+Math.random()*2)}
+ const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(3400/22,3500/22);t.anisotropy=8;return t})();
+const gm=new T.MeshStandardMaterial({color:0xe9eff6,roughness:.9,vertexColors:true,map:gt,bumpMap:gt,bumpScale:2.2});
 const ground=new T.Mesh(tg,gm);ground.receiveShadow=true;scene.add(ground);
 
