@@ -10,7 +10,7 @@ const SUN=new T.Vector3(-.55,.4,.45).normalize(),SV=SUN.toArray().map(x=>x.toFix
  float sgl=pow(max(dot(normalize(vFogDir),vec3(${SV})),0.),5.);
  gl_FragColor.rgb=mix(gl_FragColor.rgb,mix(fogColor,vec3(1.,.84,.64),sgl*.6),fogFactor);
 #endif`}}
-const LIM=575,XMAX=2540,ZN=2600,CX=-60,CZ=-980,PL=10; // castle centre and plateau height
+const LIM=575,WL=1700,XMAX=2540,ZN=2600,CX=-60,CZ=-980,PL=10,TX=-1060,TZ=-40,FT=6; // castle centre and plateau height
 const H0=(x,z)=>{const f=Math.min(1,Math.max(0,(Math.hypot(x,z)-25)/60));return f*(Math.sin(x*.012)*Math.cos(z*.015)*7+Math.sin(x*.035+z*.022)*2.2+Math.sin(z*.06)*Math.sin(x*.05)*.8)};
 const sm=(a,b,x)=>{x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x)};
 const hsh=(x,z)=>{let h=Math.imul(x,374761393)+Math.imul(z,668265263);h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967295};
@@ -24,15 +24,20 @@ const MTN=(x,z)=>{const F=sm(380,520,x);if(F<=0)return 0;const d=Math.abs(z-zc1(
  const cone=Math.cbrt(a),base=250*sm(450,1300,x),body=base+cone*.85*(.75+.5*rid(x*.003+4,z*.003)),q=Math.min(1,body/400);
  return(body+q*(rid(x*.011+7,z*.011-3)*110+rid(x*.024-5,z*.024+2)*28+40*n2(x*.01,z*.01)))*m*F}; // crags scale with height
 // The Sundered Reach (north of the castle): winding ravines, chasms and rocky ground, crossed by one narrow stone causeway
-const NM=(x,z)=>sm(-1330,-1450,z)*(1-sm(480,780,x)),PX=z=>CX+60*Math.sin((z+1300)*.0045)*sm(-1310,-1500,z); // area mask, causeway centreline
+const NM=(x,z)=>sm(-1330,-1450,z)*(1-sm(480,780,x))*sm(-640,-560,x),PX=z=>CX+60*Math.sin((z+1300)*.0045)*sm(-1310,-1500,z); // area mask, causeway centreline
 const CHASMS=[[-300,-1700,110],[150,-1900,130],[-420,-2100,100],[40,-2250,120],[-200,-2450,90]];
 function RVN(x,z){const m=NM(x,z);if(m<=0)return 0;const wx=x+60*n2(x*.004+8,z*.004),wz=z+60*n2(x*.004,z*.004+3);
  const a=Math.abs(n2(wx*.0035+11,wz*.0035-4)-.5),b=Math.abs(n2(wx*.0072-3,wz*.0072+9)-.5);let c=Math.max(1-sm(.018,.055,a),(1-sm(.012,.04,b))*.8);
  for(const k of CHASMS){const d=Math.hypot(x-k[0],z-k[1])/k[2];if(d<1)c=Math.max(c,1-sm(.55,1,d))}
  return c*m*sm(7,14,Math.abs(x-PX(z)))}
 const NH=(x,z)=>{const m=NM(x,z);if(m<=0)return 0;return m*(n2(x*.005+2,z*.005+7)-.5)*50-RVN(x,z)*(110+60*sm(-1400,-2200,z))};
-const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-480)/100,(x-2450)/100,(z-480)/100,(-z-2500)/100));
- const h=H0(x,z)+e*e*45*(1+.4*Math.sin(x*.045+z*.03)*Math.cos(z*.05))+MTN(x,z)+NH(x,z),w=1-sm(215,330,Math.max(Math.abs(x-CX),Math.abs(z-CZ)));return h+(PL-h)*w};
+// The Great Forest (west of the basin): mask, the trail to the giant tree, and flattened treehouse sites
+const FM=(x,z)=>sm(-440,-540,x)*sm(-1640,-1580,x)*sm(-720,-640,z)*(1-sm(430,500,z));
+const FPATH=x=>TZ+(10-TZ)*Math.max(0,Math.min(1,(x-(TX+60))/(-470-(TX+60))))+12*Math.sin(x*.012)*sm(TX+60,TX+240,x);
+const THS=[[-760,-190],[-905,230],[-1290,-310],[-1240,290]];
+const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-1600)/100,(x-2450)/100,(z-480)/100,(-z-2500)/100,Math.max(0,(-z-700)/100)*sm(-520,-620,x)));
+ let h=H0(x,z)+e*e*45*(1+.4*Math.sin(x*.045+z*.03)*Math.cos(z*.05))+MTN(x,z)+NH(x,z)+FM(x,z)*(n2(x*.005+9,z*.005+1)-.5)*30;const w=1-sm(215,330,Math.max(Math.abs(x-CX),Math.abs(z-CZ)));h+=(PL-h)*w;
+ h+=(FT-h)*(1-sm(70,150,Math.hypot(x-TX,z-TZ)));for(const t of THS)h+=(FT-h)*(1-sm(62,100,Math.hypot(x-t[0],z-t[1])));return h};
 const R=Math.random;
 const scene=new T.Scene();scene.background=new T.Color(0xb9c6d3);scene.fog=new T.FogExp2(0xb9c6d3,.017);const uT={value:0};
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.2,3500);
@@ -57,7 +62,7 @@ const sky=new T.Mesh(new T.SphereGeometry(700,32,16),new T.ShaderMaterial({side:
 sky.renderOrder=-1;sky.frustumCulled=false;scene.add(sky);
 
 // terrain
-const tg=new T.PlaneGeometry(3400,3500,525,540);tg.rotateX(-PI/2);tg.translate(1000,0,-1050);
+const tg=new T.PlaneGeometry(4600,3500,630,480);tg.rotateX(-PI/2);tg.translate(400,0,-1050);
 const tp=tg.attributes.position;for(let i=0;i<tp.count;i++)tp.setY(i,H(tp.getX(i),tp.getZ(i)));
 tg.computeVertexNormals();
 {const nA=tg.attributes.normal,col=new Float32Array(tp.count*3);
@@ -73,6 +78,9 @@ tg.computeVertexNormals();
     st=sm(.52,.64,n2(x*.011+5,z*.011)+.3*n2(x*.06,z*.06))*nm,band=.5+.5*Math.sin(y*.16+n2(x*.02,z*.02)*5),sv=.28+.14*band+.05*n2(x*.4,z*.4);   // stone patches in the snow
    const k=Math.max(cut*nm,st*.9);r+=(sv-r)*k;g+=(sv*.98-g)*k;b+=(sv*1.04-b)*k;
    if(z<-1150&&z>-2430&&cl<5){const f=1-sm(3,5,cl);r+=(.5-r)*f*.9;g+=(.5-g)*f*.9;b+=(.52-b)*f*.9}}} // flagstones along the causeway
+  {const fm=FM(x,z);if(fm>0){const sn=sm(.45,.7,n2(x*.012+4,z*.012)+.35*n2(x*.07,z*.07)),v=.9+.2*n2(x*.3,z*.3),k=fm*.85*(1-sn*.7); // forest floor: needles and earth, dusted with snow
+   r+=(.36*v-r)*k;g+=(.4*v-g)*k;b+=(.3*v-b)*k;
+   if(x<-470&&x>TX+45){const dd=Math.abs(z-FPATH(x));if(dd<5){const f=1-sm(3,5,dd);r+=(.44-r)*f*.9;g+=(.36-g)*f*.9;b+=(.28-b)*f*.9}}}}
   col[i*3]=r;col[i*3+1]=g;col[i*3+2]=b}
  tg.setAttribute('color',new T.BufferAttribute(col,3))}
 // ground: a tiling canvas texture (snow drifts, ripples, flecks) used as colour AND bump map, so the snow has visible grain at any distance
@@ -81,7 +89,7 @@ const gt=(()=>{const S=512,c=document.createElement('canvas');c.width=c.height=S
  for(let i=0;i<260;i++){const x=Math.random()*S,y=Math.random()*S,r=14+Math.random()*46,v=Math.random()<.5?255:140,a=.06+Math.random()*.12;wrap((ox,oy)=>{const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,r);gr.addColorStop(0,'rgba('+v+','+v+','+(v+6)+','+a+')');gr.addColorStop(1,'rgba('+v+','+v+','+(v+6)+',0)');g.fillStyle=gr;g.fillRect(x+ox-r,y+oy-r,2*r,2*r)})}
  for(let i=0;i<14;i++){const y=Math.random()*S;g.strokeStyle='rgba(255,255,255,.2)';g.lineWidth=2+Math.random()*3;g.beginPath();for(let x=0;x<=S;x+=16){const yy=y+Math.sin(x/S*PI*6+i)*9;if(x==0)g.moveTo(x,yy);else g.lineTo(x,yy)}g.stroke()}
  for(let i=0;i<5200;i++){const v=Math.random()<.35?255:110+Math.random()*60|0;g.fillStyle='rgba('+v+','+v+','+(v+8)+','+(.1+Math.random()*.18)+')';g.fillRect(Math.random()*S,Math.random()*S,1+Math.random()*2,1+Math.random()*2)}
- const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(3400/22,3500/22);t.anisotropy=8;return t})();
+ const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(4600/22,3500/22);t.anisotropy=8;return t})();
 const gm=new T.MeshStandardMaterial({color:0xe9eff6,roughness:.9,vertexColors:true,map:gt,bumpMap:gt,bumpScale:2.2});
 const ground=new T.Mesh(tg,gm);ground.receiveShadow=true;scene.add(ground);
 
