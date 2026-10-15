@@ -111,7 +111,7 @@ function enemyUpdate(dt){
  if(P.dead&&E.s!='idle'){E.s='chase'}
  if(E.flash>0){gc=0xffffff;gk=.6}
  glow(gc,gk);elight.color.setHex(gc||0xff3b2a);elight.intensity=gk*7;elight.position.set(E.x,H(E.x,E.z)+2,E.z);eA.rotation.set(pose[0],0,pose[1]);eT.rotation.y=pose[2];
- E.x=Math.max(-LIM,Math.min(XMAX,E.x));E.z=Math.max(-ZN,Math.min(LIM,E.z));collide(E,1);
+ E.x=Math.max(-WL,Math.min(XMAX,E.x));E.z=Math.max(-ZN,Math.min(LIM,E.z));collide(E,1);
  E.g.position.set(E.x,H(E.x,E.z),E.z);E.g.rotation.y=E.face;
  bar.querySelector('i').style.width=E.hp/E.max*100+'%';scr(E.x,H(E.x,E.z)+3.1,E.z,bar,d<45)}
 
