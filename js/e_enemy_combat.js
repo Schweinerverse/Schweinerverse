@@ -34,18 +34,18 @@ function update(dt){
  const mx=(keys.KeyD?1:0)-(keys.KeyA?1:0),mz=(keys.KeyW?1:0)-(keys.KeyS?1:0);
  if(!P.lock){if(keys.ArrowLeft)yaw+=dt*2;if(keys.ArrowRight)yaw-=dt*2}if(keys.ArrowUp)pitch=Math.min(1.2,pitch+dt*1.5);if(keys.ArrowDown)pitch=Math.max(-.15,pitch-dt*1.5);
  const fx=-Math.sin(yaw),fz=-Math.cos(yaw);let dx=fx*mz-fz*mx,dz=fz*mz+fx*mx;const l=Math.hypot(dx,dz);if(l){dx/=l;dz/=l}
- let speed=0,sprint=false,rigX=0;enemyUpdate(dt);lockUpdate(dt);treeUpdate();edgeCheck();compassUpdate();areaUpdate();
+ let speed=0,sprint=false,rigX=0;enemyUpdate(dt);lockUpdate(dt);treeUpdate();if(typeof npcUpdate=='function')npcUpdate(dt);edgeCheck();compassUpdate();areaUpdate();
  if(P.roll){const r=P.roll;r.t+=dt/.55;speed=11*(1-r.t*.55);dx=r.dx;dz=r.dz;if(r.t>=1)P.roll=null;else rigX=r.t*2*PI}
  else if(P.atk){const a=P.atk,d=a.d;a.t+=dt/d.dur;
   if(a.t>=d.w[0]&&a.t<d.w[1]){speed=d.lun;dx=Math.sin(P.face);dz=Math.cos(P.face)}else{dx=dz=0}
   if(!a.hit&&a.t>=d.w[0]+(d.w[1]-d.w[0])*.7){a.hit=true;
    const ox=dummy.position.x-P.x,oz=dummy.position.z-P.z,dd=Math.hypot(ox,oz);
-   if(dd<3.8&&(ox*Math.sin(P.face)+oz*Math.cos(P.face))/dd>.3){wob=1;hits++;dmg+=d.dm}hitEnemy(d.dm)}
+   if(dd<3.8&&(ox*Math.sin(P.face)+oz*Math.cos(P.face))/dd>.3){wob=1;hits++;dmg+=d.dm}hitEnemy(d.dm);if(typeof hitNPCs=='function')hitNPCs(d.dm)}
   if(a.t>=1){P.atk=null;if(P.q){const q=P.q;P.q=null;attack(q)}}}
  else{
   if(l){sprint=keys.ShiftLeft&&P.st>0;speed=sprint?8.5:4.6;if(!P.lock)P.face=lerpA(P.face,Math.atan2(dx,dz),Math.min(1,dt*12));if(sprint)P.st=Math.max(0,P.st-16*dt),P.stT=.8}
   else dx=dz=0}
- {const nx=Math.max(-LIM,Math.min(XMAX,P.x+dx*speed*dt)),nz=Math.max(-ZN,Math.min(LIM,P.z+dz*speed*dt)),h0=H(P.x,P.z),ok=(a,b)=>{const st=Math.hypot(a-P.x,b-P.z);return st<1e-5||(H(a,b)-h0)/st<1.15};
+ {const nx=Math.max(-WL,Math.min(XMAX,P.x+dx*speed*dt)),nz=Math.max(-ZN,Math.min(LIM,P.z+dz*speed*dt)),h0=H(P.x,P.z),ok=(a,b)=>{const st=Math.hypot(a-P.x,b-P.z);return st<1e-5||(H(a,b)-h0)/st<1.15};
   if(ok(nx,nz)){P.x=nx;P.z=nz}else if(ok(nx,P.z))P.x=nx;else if(ok(P.x,nz))P.z=nz}
  collide(P,.55);{const g=groundY(P);if(g>=P.y-.35){if(P.air){P.air=false;const dr=P.fy-g;if(dr>22)fallHurt(dr)}P.y=g;P.vy=0;if(RVN(P.x,P.z)<.02&&Math.abs(H(P.x+2,P.z)-g)<2.5&&Math.abs(H(P.x,P.z+2)-g)<2.5){P.sx=P.x;P.sz=P.z;P.sy=g}}
   else{if(!P.air){P.air=true;P.fy=P.y}P.fy=Math.max(P.fy,P.y);P.vy-=45*dt;P.y=Math.max(g,P.y+P.vy*dt)}} // floors, stairs and falling
@@ -68,7 +68,7 @@ function update(dt){
  const cf=camFree(tx,ty,tz,cx,cy,cz);cam.position.set(tx+(cx-tx)*cf+(R()-.5)*shake,ty+(cy-ty)*cf+(R()-.5)*shake,tz+(cz-tz)*cf);cam.lookAt(tx,ty,tz);sky.position.copy(cam.position);shake=Math.max(0,shake-dt*2);
  sun.position.set(P.x+SUN.x*70,gy+SUN.y*70,P.z+SUN.z*70);sun.target.position.set(P.x,gy,P.z);
  // snow
- const zone=sm(-440,-600,P.z)*(1-sm(380,520,P.x)),z2=sm(-1340,-1500,P.z)*(1-sm(380,520,P.x)),tt=performance.now()*.001,wind=(2.5+2*Math.sin(tt*.35)+Math.sin(tt*.9))*(1-.4*zone+.6*z2);uT.value=tt;{const inK=Math.abs(P.x-CX)<41&&P.z-CZ>-46&&P.z-CZ<36&&P.y<PL+72;sg.setDrawRange(0,inK?0:Math.floor(N*Math.min(1,1-.7*zone+.6*z2)))} // lighter snowfall in the marches
+ const zone=sm(-440,-600,P.z)*(1-sm(380,520,P.x)),z2=sm(-1340,-1500,P.z)*(1-sm(380,520,P.x)),tt=performance.now()*.001,wind=(2.5+2*Math.sin(tt*.35)+Math.sin(tt*.9))*(1-.4*zone+.6*z2);uT.value=tt;{const inK=Math.abs(P.x-CX)<41&&P.z-CZ>-46&&P.z-CZ<36&&P.y<PL+72||Math.hypot(P.x-TX,P.z-TZ)<41&&P.y<FT+100;sg.setDrawRange(0,inK?0:Math.floor(N*Math.min(1,1-.7*zone+.6*z2)))} // lighter snowfall in the marches
  scene.fog.density=(.0135+.005*Math.sin(tt*.21)+.003*Math.sin(tt*.6))*(1-.35*zone+.5*z2);
  for(let i=0;i<N;i++){const j=i*3;sp[j]+=dt*wind*(.6+sv[i]*.2);sp[j+2]+=dt*wind*.35;sp[j+1]-=sv[i]*dt;
   if(sp[j+1]<gy-3)sp[j+1]+=55;if(sp[j+1]>gy+52)sp[j+1]-=55;
