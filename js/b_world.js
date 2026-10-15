@@ -33,15 +33,15 @@ function buildTrees(tgeo){const m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.
 for(const k in bk){const a=bk[k],im=new T.InstancedMesh(tgeo,tm,a.length);im.frustumCulled=false;
  a.forEach((t,i)=>{e.set(0,t[3],0);q.setFromEuler(e);m4.compose(new T.Vector3(t[0],H(t[0],t[1])+t[2]*.35,t[1]),q,new T.Vector3(t[2],t[2],t[2]));im.setMatrixAt(i,m4)});
  const [cx,cz]=k.split(',').map(Number);chunks.push({m:im,cx:(cx+.5)*CH,cz:(cz+.5)*CH});scene.add(im)}}
-loadTree().catch(()=>{tm.color.set(0x2f4a3c);return new T.ConeGeometry(.3,1,7)}).then(buildTrees);
+const treeP=loadTree().catch(()=>{tm.color.set(0x2f4a3c);return new T.ConeGeometry(.3,1,7)});treeP.then(buildTrees);
 const cItems=[];
 for(let d=0;d<360;d+=15){const e=document.createElement('span'),L={0:'N',45:'NE',90:'E',135:'SE',180:'S',225:'SW',270:'W',315:'NW'}[d];e.className='c'+(L?(L.length==1?' c1':' c2'):'');e.textContent=L||'\u00b7';$('ctrack').appendChild(e);cItems.push([e,d])}
 function compassUpdate(){const h=(((PI-P.face)*180/PI)%360+360)%360;
  for(const [e,d] of cItems){const x=((d-h+540)%360)-180;e.style.transform='translateX(calc(-50% + '+x*2.4+'px))';e.style.opacity=Math.max(0,1-Math.abs(x)/62)}
  $('cval').textContent=['N','NE','E','SE','S','SW','W','NW'][Math.round(h/45)%8]+' '+Math.round(h)+'\u00b0'}
-let areaN='Frostfall Basin';function areaUpdate(){const n=P.x<430?(Math.abs(P.x-CX)<176&&Math.abs(P.z-CZ)<176?'Citadel of the Pale Crown':P.z<-1340?'The Sundered Reach':P.z<-520?'The Pale Marches':'Frostfall Basin'):P.x<1100?'The Frostpass':'Spirefall Heights';if(n!=areaN){areaN=n;$('area').textContent=n;msg(n.toUpperCase(),2800)}}
-let edgeT=0;function edgeCheck(){edgeT-=1/60;if(edgeT<0&&(P.x<-LIM+6||P.z>LIM-6||P.x>XMAX-6||P.z<-ZN+6)){edgeT=5;msg('The storm and the mountains bar the way',2400,'Other regions of Eternal Snow are yet to be opened')}}
-function treeUpdate(){for(const c of chunks){const d=Math.hypot(c.cx-P.x,c.cz-P.z);c.m.visible=d<210;c.m.castShadow=d<45}}
+let areaN='Frostfall Basin';function areaUpdate(){const n=P.x>1850&&P.z<-1950?'Rimeholt':P.x<-470&&P.z>-720?'The Great Forest':P.x<430?(Math.abs(P.x-CX)<176&&Math.abs(P.z-CZ)<176?'Citadel of the Pale Crown':P.z<-1340?'The Sundered Reach':P.z<-520?'The Pale Marches':'Frostfall Basin'):P.x<1100?'The Frostpass':'Spirefall Heights';if(n!=areaN){areaN=n;$('area').textContent=n;msg(n.toUpperCase(),2800)}}
+let edgeT=0;function edgeCheck(){edgeT-=1/60;if(edgeT<0&&(P.x<-WL+6||P.z>LIM-6||P.x>XMAX-6||P.z<-ZN+6)){edgeT=5;msg('The storm and the mountains bar the way',2400,'Other regions of Eternal Snow are yet to be opened')}}
+function treeUpdate(){if(typeof forestUpdate=='function')forestUpdate();for(const c of chunks){const d=Math.hypot(c.cx-P.x,c.cz-P.z);c.m.visible=d<210;c.m.castShadow=d<45}}
 place(new T.InstancedMesh(new T.IcosahedronGeometry(1,0),new T.MeshStandardMaterial({color:0x9aa3ad,roughness:1,flatShading:true}),200),200,()=>({x:1+R()*3,h:.6+R()*1.5,y:.1}));
 {const n=520,im=new T.InstancedMesh(new T.IcosahedronGeometry(1,0),new T.MeshStandardMaterial({color:0x6d6a68,roughness:1,flatShading:true}),n),m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler();let c=0; // the Sundered Reach: boulders, rock pillars and the gate ring at the end of the causeway
  for(let i=0;i<n*4&&c<n;i++){const x=-560+R()*1000,z=-2550+R()*1200,y=H(x,z);if(RVN(x,z)>.01||NM(x,z)<.9)continue;const s=1.5+R()*R()*8;e.set(R()*6,R()*6,R()*6);q.setFromEuler(e);m4.compose(new T.Vector3(x,y+s*.2,z),q,new T.Vector3(s*1.3,s*.8,s));im.setMatrixAt(c++,m4)}im.count=c;scene.add(im)}
