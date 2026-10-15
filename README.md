@@ -7,3 +7,4 @@ Snow in the Water Simulator 5: a browser action-RPG prototype built with three.j
 - `render.yaml` - Render static-site blueprint
 
 Controls: WASD move, Shift sprint, Space roll, LMB/J light combo, RMB/K heavy attack, Tab/Q/MMB lock-on, mouse or arrow keys for camera, wheel to zoom.
+SITWS 5 - Eternal Snow is the first "major" entry in the SITWS series. It is inspired by games like Elden Ring and Tears of the Kingdom, just with the SITWS twist.
