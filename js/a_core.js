@@ -10,7 +10,7 @@ const SUN=new T.Vector3(-.55,.4,.45).normalize(),SV=SUN.toArray().map(x=>x.toFix
  float sgl=pow(max(dot(normalize(vFogDir),vec3(${SV})),0.),5.);
  gl_FragColor.rgb=mix(gl_FragColor.rgb,mix(fogColor,vec3(1.,.84,.64),sgl*.6),fogFactor);
 #endif`}}
-const LIM=575,WL=1700,XMAX=2540,ZN=2600,CX=-60,CZ=-980,PL=10,TX=-1060,TZ=-40,FT=6,TWX=2150,TWZ=-2250,TWH=5; // castle centre and plateau height
+const LIM=575,WL=1700,XMAX=2540,ZN=2600,CX=-60,CZ=-980,PL=10,TX=-1060,TZ=-40,FT=6,TWX=2150,TWZ=-2250,TWH=5,NWX=-1250,NWZ=-2250,NWH=10; // castle centre and plateau height
 const H0=(x,z)=>{const f=Math.min(1,Math.max(0,(Math.hypot(x,z)-25)/60));return f*(Math.sin(x*.012)*Math.cos(z*.015)*7+Math.sin(x*.035+z*.022)*2.2+Math.sin(z*.06)*Math.sin(x*.05)*.8)};
 const sm=(a,b,x)=>{x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x)};
 const hsh=(x,z)=>{let h=Math.imul(x,374761393)+Math.imul(z,668265263);h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967295};
@@ -38,9 +38,13 @@ const NH=(x,z)=>{const m=NM(x,z);if(m<=0)return 0;return m*(n2(x*.005+2,z*.005+7
 const FM=(x,z)=>sm(-440,-540,x)*sm(-1640,-1580,x)*sm(-720,-640,z)*(1-sm(430,500,z));
 const FPATH=x=>TZ+(10-TZ)*Math.max(0,Math.min(1,(x-(TX+60))/(-470-(TX+60))))+12*Math.sin(x*.012)*sm(TX+60,TX+240,x);
 const THS=[[-760,-190],[-905,230],[-1290,-310],[-1240,290]];
-const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-1600)/100,(x-2450)/100,(z-480)/100,(-z-2500)/100,Math.max(0,(-z-700)/100)*sm(-520,-620,x)));
+// the Iron Road: from the forest trail north to Ironhold in the north-west corner; the valley walls stand back from it
+const RD3=[[-640,FPATH(-640)],[-650,-250],[-720,-520],[-900,-760],[-1100,-1050],[-1200,-1500],[-1250,-1900],[NWX,NWZ]];
+const dpl3=(x,z)=>{let b=1e9;for(let i=0;i<RD3.length-1;i++){const a=RD3[i],c=RD3[i+1],vx=c[0]-a[0],vz=c[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*vx+(z-a[1])*vz)/(vx*vx+vz*vz))),d=Math.hypot(x-a[0]-vx*t,z-a[1]-vz*t);if(d<b)b=d}return b};
+const nwd=(x,z)=>Math.min(dpl3(x,z),Math.max(0,Math.hypot(x-NWX,z-NWZ)-150));
+const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-1600)/100,(x-2450)/100,(z-480)/100,(-z-2500)/100,Math.max(0,(-z-700)/100)*sm(-520,-620,x)*(x<-500&&z<-600?sm(100,420,nwd(x,z)):1)));
  let h=H0(x,z)+e*e*45*(1+.4*Math.sin(x*.045+z*.03)*Math.cos(z*.05))+MTN(x,z)+NH(x,z)+FM(x,z)*(n2(x*.005+9,z*.005+1)-.5)*30;const w=1-sm(215,330,Math.max(Math.abs(x-CX),Math.abs(z-CZ)));h+=(PL-h)*w;
- h+=(FT-h)*(1-sm(70,150,Math.hypot(x-TX,z-TZ)));for(const t of THS)h+=(FT-h)*(1-sm(62,100,Math.hypot(x-t[0],z-t[1])));h+=(TWH-h)*(1-sm(150,260,Math.hypot(x-TWX,z-TWZ)));return h};
+ h+=(FT-h)*(1-sm(70,150,Math.hypot(x-TX,z-TZ)));for(const t of THS)h+=(FT-h)*(1-sm(62,100,Math.hypot(x-t[0],z-t[1])));h+=(TWH-h)*(1-sm(150,260,Math.hypot(x-TWX,z-TWZ)));h+=(NWH-h)*(1-sm(240,340,Math.hypot(x-NWX,z-NWZ)));return h};
 const R=Math.random;
 const scene=new T.Scene();scene.background=new T.Color(0xb9c6d3);scene.fog=new T.FogExp2(0xb9c6d3,.017);const uT={value:0};
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.2,3500);
@@ -87,6 +91,9 @@ tg.computeVertexNormals();
   {const td=Math.hypot(x-TWX,z-TWZ),rd=x>1500?dpl(x,z):1e9; // Rimeholt: trampled mud and snow, and the dirt road leading to it
    if(td<190){const k=.62*(1-sm(120,190,td)),v=.84+.2*n2(x*.25,z*.25);r+=(.46*v-r)*k;g+=(.43*v-g)*k;b+=(.39*v-b)*k}
    if(rd<5&&x>1500){const f=1-sm(3,5,rd);r+=(.42-r)*f*.85;g+=(.38-g)*f*.85;b+=(.34-b)*f*.85}}
+  {const nd=Math.hypot(x-NWX,z-NWZ),rd=x<-500&&z<-600?dpl3(x,z):1e9; // Ironhold: packed earth and grey stone underfoot, and the Iron Road leading to it
+   if(nd<250){const k=.7*(1-sm(190,250,nd)),v=.8+.25*n2(x*.3,z*.3);r+=(.4*v-r)*k;g+=(.4*v-g)*k;b+=(.42*v-b)*k}
+   if(rd<5){const f=1-sm(3,5,rd);r+=(.4-r)*f*.85;g+=(.36-g)*f*.85;b+=(.32-b)*f*.85}}
   col[i*3]=r;col[i*3+1]=g;col[i*3+2]=b}
  tg.setAttribute('color',new T.BufferAttribute(col,3))}
 // ground: a tiling canvas texture (snow drifts, ripples, flecks) used as colour AND bump map, so the snow has visible grain at any distance
