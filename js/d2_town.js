@@ -75,45 +75,68 @@
   if(guard){const st=M(0x8a939c);part(SP,st,0,1.97,0).scale.set(.25,.19,.26);part(BX(.07,.3,.05),st,0,1.88,.2);part(BX(.42,.7,.03),M(0x7a3b2e),0,1.25,.19);weapon=new T.Group();weapon.position.set(0,-.7,.12);arms[1].add(weapon);part(new T.CylinderGeometry(.04,.04,2.6,6),M(0x6a5640),0,.9,0,weapon);part(new T.ConeGeometry(.08,.4,6),st,0,2.3,0,weapon);weapon.rotation.x=-.2}
   else{part(new T.ConeGeometry(.25,.4,8),dk,0,2.12,0);part(BX(.5,.14,.36),M(0x8a8079),0,1.62,0)}
   return{g,legs,arms,mats,weapon}}
+ let level=0,alertT=0;
+ const LVN=['FRIENDLY','ALERT','AGGRESSIVE'],LVC=['#8fcf9a','#e0b44f','#d9503f'],tEl=document.createElement('div');tEl.style.cssText='font-size:12px;letter-spacing:.18em;margin-top:6px;display:none;text-shadow:0 1px 4px #000';$('hud').appendChild(tEl);
+ // Rimeholt's mood: FRIENDLY until somebody is struck; AGGRESSIVE while the watch hunts you; ALERT afterwards (a guard shadows you, townsfolk are curt) until it fades
+ const setLevel=(l,sub)=>{if(l==level)return;const was=level;level=l;if(l==1)alertT=300;if(Math.hypot(P.x-TWX,P.z-TWZ)<600)msg(l==1?'RIMEHOLT IS ON ALERT':'RIMEHOLT HAS CALMED',2600,sub||(l==1?'The watch has given up the chase':'The town forgives, but does not forget'))};
+ const GX=TWX,GZ=TWZ+130,ins=(x,z)=>Math.hypot(x-TWX,z-TWZ)<126; // no pathfinding: guards cross the palisade through the south gate, and sidestep when they snag on a corner
+ const aim=(n,tx,tz)=>{if(ins(n.x,n.z)!=ins(tx,tz)){const ax=Math.abs(n.x-GX)<=5;if(ins(n.x,n.z)){if(!ax||n.z<GZ-16){tx=GX;tz=GZ-14}else{tx=GX;tz=GZ+14}}else{if(!ax||n.z>GZ+16){tx=GX;tz=GZ+14}else{tx=GX;tz=GZ-14}}}return Math.atan2(tx-n.x,tz-n.z)+(n.sideT>0?n.side*1.2:0)};
  const DEFS=[
-  {n:'Gate warden',k:'g',x:-11,z:122,f:PI,l:['Hold. State your business.','Rimeholt has little to give and less to spare.','Keep your blade sheathed inside the walls.']},
-  {n:'Gate warden',k:'g',x:11,z:122,f:PI,l:['Winter took the stores early. Do not make trouble.','We turn away no one. We also feed no one.']},
-  {n:'Watchman Oske',k:'g',x:0,z:100,patrol:[[0,100],[0,30],[-10,-30],[0,30]],l:['Quiet night. Quiet nights are the dear ones, here.','If you see the smoke stop, wake us.']},
-  {n:'Watchman Brann',k:'g',x:40,z:50,patrol:[[40,50],[50,90],[10,100],[10,50]],l:['Three guards for a town of forty. Guess who sleeps.','Strike a neighbour and you strike all of us.']},
-  {n:'Captain Hild',k:'g',x:-16,z:124,f:1.2,l:['I keep the peace on bark soup and stubbornness.','Raise a hand against anyone here and my watch answers. All of it.']},
-  {n:'Old Marta',k:'c',x:3,z:5,f:PI/2,l:['The well is the only thing here still warm.','My son went north for work. That was six winters ago.']},
-  {n:'Odd the woodcutter',k:'c',x:-42,z:-18,f:.8,l:['The trees are frozen to their hearts. The axe rings like a bell.','Burn the chairs first, they said. We have burnt the chairs.']},
-  {n:'Brenna',k:'c',x:-7,z:11,f:2.4,l:['Sit a while by the brazier. Warmth is free, so far.','Do not stare at the knight on the hill. They say he walks.']},
-  {n:'Hrolf the trader',k:'c',x:12,z:-12,f:0,l:['I would sell you bread, but the baker burnt his oven for heat.','Everything on this table is for sale. Nobody here has coin.']},
-  {n:'Smith Gudrun',k:'c',x:60,z:-41,f:PI,l:['Iron is cheap. Coal is not.','The forge has been cold since the first snow.']}];
- for(const d of DEFS){const m=mkNPC(d),n=Object.assign({},d,{g:m.g,legs:m.legs,arms:m.arms,mats:m.mats,weapon:m.weapon,x:TWX+d.x,z:TWZ+d.z,f:d.f||0,hx:TWX+d.x,hz:TWZ+d.z,hf:d.f||0,hp:d.k=='g'?130:30,state:d.patrol?'patrol':'idle',pat:(d.patrol||[]).map(p=>[TWX+p[0],TWZ+p[1]]),pi:0,wait:0,cd:0,flash:0,li:0,ph:Math.random()*6,dead:0,atk:null,fleeT:0,away:0});NPCS.push(n);scene.add(m.g)}
- window.hitNPCs=dm=>{let angry=false;for(const n of NPCS){if(n.dead)continue;const ox=n.x-P.x,oz=n.z-P.z,dd=Math.hypot(ox,oz);if(dd<3.9&&(ox*Math.sin(P.face)+oz*Math.cos(P.face))/dd>.3){n.hp-=dm;n.flash=.2;stop=Math.max(stop,dm>50?.13:.07);shake=Math.max(shake,dm>50?.5:.25);
-   if(n.k=='g'){n.state='hostile';n.atk=null}else{n.state='flee';n.fleeT=7}
-   for(const q of NPCS)if(q.k=='g'&&!q.dead&&q.state!='hostile'&&Math.hypot(q.x-n.x,q.z-n.z)<140){q.state='hostile';q.atk=null;angry=true} // any blow struck in town turns the watch against you
+  {n:'Gate warden',k:'g',x:-11,z:122,f:PI,l:['Hold. State your business.','Rimeholt has little to give and less to spare.','Keep your blade sheathed inside the walls.'],la:['I have my eye on you, stranger.','One wrong step and the whole watch hears of it.']},
+  {n:'Gate warden',k:'g',x:11,z:122,f:PI,l:['Winter took the stores early. Do not make trouble.','We turn away no one. We also feed no one.'],la:['We know what you did. Keep walking.','Do not test us twice.']},
+  {n:'Watchman Oske',k:'g',x:0,z:100,patrol:[[0,100],[0,30],[-10,-30],[0,30]],l:['Quiet night. Quiet nights are the dear ones, here.','If you see the smoke stop, wake us.'],la:['You are the one who raised a blade. I remember.','Stay where I can see you.']},
+  {n:'Watchman Brann',k:'g',x:40,z:50,patrol:[[40,50],[50,90],[10,100],[10,50]],l:['Three guards for a town of forty. Guess who sleeps.','Strike a neighbour and you strike all of us.'],la:['Walk slowly. Touch nothing.','The captain wants you watched.']},
+  {n:'Captain Hild',k:'g',x:-16,z:124,f:1.2,l:['I keep the peace on bark soup and stubbornness.','Raise a hand against anyone here and my watch answers. All of it.'],la:['You have tried this watch enough for one day.','Behave, and perhaps this passes. Do not mistake patience for weakness.']},
+  {n:'Old Marta',k:'c',x:3,z:5,f:PI/2,l:['The well is the only thing here still warm.','My son went north for work. That was six winters ago.'],la:['I have nothing to say to you.','Go on. Not today.']},
+  {n:'Odd the woodcutter',k:'c',x:-42,z:-18,f:.8,l:['The trees are frozen to their hearts. The axe rings like a bell.','Burn the chairs first, they said. We have burnt the chairs.'],la:['Word travels fast in a town this small.','I will not speak with a brawler.']},
+  {n:'Brenna',k:'c',x:-7,z:11,f:2.4,l:['Sit a while by the brazier. Warmth is free, so far.','Do not stare at the knight on the hill. They say he walks.'],la:['Sit elsewhere. The fire is for friends.','They say you struck one of us.']},
+  {n:'Hrolf the trader',k:'c',x:12,z:-12,f:0,l:['I would sell you bread, but the baker burnt his oven for heat.','Everything on this table is for sale. Nobody here has coin.'],la:['Nothing for sale. Not to you. Not today.','Move along, traveller.']},
+  {n:'Smith Gudrun',k:'c',x:60,z:-41,f:PI,l:['Iron is cheap. Coal is not.','The forge has been cold since the first snow.'],la:['I heard. I will not sell you iron.','Keep your trouble out of my forge.']}];
+ for(const d of DEFS){const m=mkNPC(d),n=Object.assign({},d,{g:m.g,legs:m.legs,arms:m.arms,mats:m.mats,weapon:m.weapon,x:TWX+d.x,z:TWZ+d.z,f:d.f||0,hx:TWX+d.x,hz:TWZ+d.z,hf:d.f||0,hp:d.k=='g'?130:30,state:d.patrol?'patrol':'idle',pat:(d.patrol||[]).map(p=>[TWX+p[0],TWZ+p[1]]),pi:0,wait:0,cd:0,flash:0,li:0,ph:Math.random()*6,dead:0,atk:null,fleeT:0,chase:0,rest:0,grudge:false,mv:0,tw:0,side:1,sideT:0});NPCS.push(n);scene.add(m.g)}
+ // what a person says depends on the town's mood and on whether you ever struck them: they never forget that
+ const lines=n=>n.grudge?(n.k=='g'?['You again. I remember your face. Come closer and I finish it.','Rimeholt does not forgive a blow to its watch.']:['Get away from me!','You struck me. I will not forget it.']):level==2?['Please, leave us be!','Guards! Guards!']:level==1?n.la:n.l;
+ window.hitNPCs=dm=>{let hit=false;for(const n of NPCS){if(n.dead)continue;const ox=n.x-P.x,oz=n.z-P.z,dd=Math.hypot(ox,oz);if(dd<3.9&&(ox*Math.sin(P.face)+oz*Math.cos(P.face))/dd>.3){hit=true;n.hp-=dm;n.flash=.2;n.grudge=true;stop=Math.max(stop,dm>50?.13:.07);shake=Math.max(shake,dm>50?.5:.25);
+   if(n.k=='g'){n.state='hostile';n.atk=null;n.chase=0}else{n.state='flee';n.fleeT=7}
    if(n.hp<=0){n.dead=.01;n.state='dead'}}}
-  if(angry)msg('THE WATCH TURNS ON YOU',2400,'You struck first')};
- window.npcTalk=()=>{if(!cur||cur.dead)return;talkT=6;npcEl.innerHTML='<b style="color:#d8b56a">'+cur.n+'</b><br>'+cur.l[cur.li++%cur.l.length];npcEl.style.display='block'};
- window.npcUpdate=dt=>{let near=null,nd=4.5;
-  for(const n of NPCS){const dx=P.x-n.x,dz=P.z-n.z,d=Math.hypot(dx,dz),g=n.g;n.flash=Math.max(0,n.flash-dt);n.cd-=dt;
+  if(hit){const was=level;alertT=300;level=2;for(const q of NPCS)if(q.k=='g'&&!q.dead&&q.state!='hostile'){q.state='hostile';q.atk=null;q.chase=0} // news of a blow travels through the whole village
+   if(was<2)msg('THE WATCH TURNS ON YOU',2400,was?'Rimeholt was already watching you':'You struck first');if(typeof saveGame=='function')saveGame()}};
+ window.npcTalk=()=>{if(!cur||cur.dead)return;talkT=6;const L=lines(cur);npcEl.innerHTML='<b style="color:#d8b56a">'+cur.n+'</b><br>'+L[cur.li++%L.length];npcEl.style.display='block'};
+ window.townSave=()=>({lv:level,at:alertT,n:NPCS.map(n=>[n.hp,n.dead?1:0,n.grudge?1:0,n.dead?+n.x.toFixed(1):0,n.dead?+n.z.toFixed(1):0,n.dead?+n.f.toFixed(2):0])});
+ window.townLoad=s=>{if(!s||!Array.isArray(s.n)||s.n.length!=NPCS.length)return;level=s.lv==2?1:(s.lv|0);alertT=s.lv==2?300:+s.at||0;if(level==1&&alertT<=0)alertT=300; // a chase in progress when you left becomes an alert
+  s.n.forEach((a,i)=>{const n=NPCS[i];n.hp=a[0];n.grudge=!!a[2];if(a[1]){n.dead=1;n.state='dead';n.x=a[3];n.z=a[4];n.f=a[5]}})};
+ window.npcUpdate=dt=>{const td=Math.hypot(P.x-TWX,P.z-TWZ),inTown=td<175;let near=null,nd=4.5;
+  if(level==2){if(!NPCS.some(n=>n.k=='g'&&!n.dead&&n.state=='hostile'))setLevel(1)}
+  else if(level==1){alertT-=dt;if(alertT<=0)setLevel(0)}
+  const fol=NPCS.find(n=>n.state=='follow'); // on alert, one guard shadows you while you are inside the walls
+  if(level==1&&inTown&&!P.dead){if(!fol){let b=null,bd=1e9;for(const n of NPCS)if(n.k=='g'&&!n.dead&&(n.state=='patrol'||n.state=='idle'||n.state=='return')){const d=Math.hypot(P.x-n.x,P.z-n.z);if(d<bd){bd=d;b=n}}if(b){b.state='follow';b.atk=null}}}
+  else if(fol)fol.state='return';
+  for(const n of NPCS){const dx=P.x-n.x,dz=P.z-n.z,d=Math.hypot(dx,dz),g=n.g;n.flash=Math.max(0,n.flash-dt);n.cd-=dt;n.rest-=dt;
    if(n.dead){n.dead=Math.min(1,n.dead+dt*1.4);g.rotation.x=-n.dead*PI/2*.98;g.position.set(n.x,H(n.x,n.z)+.15*n.dead,n.z);for(const m of n.mats){m.emissive.setHex(0);m.emissiveIntensity=0}continue}
    let sp=0,aw=0,arm=0;
-   if(n.state=='hostile'){n.away=d>110?n.away+dt:0;if(n.away>14){n.state='return';n.away=0}
-    else if(!P.dead){const want=Math.atan2(dx,dz);
+   if(P.dead&&(n.state=='hostile'||n.state=='follow')){n.state='return';n.atk=null}
+   if(n.k=='g'&&n.grudge&&n.rest<=0&&d<28&&!P.dead&&n.state!='hostile'&&n.state!='flee'){n.state='hostile';n.atk=null;n.chase=0;if(level==0)setLevel(1,'A guard remembers you')}
+   if(n.state=='hostile'){if(d<4)n.chase=0;else n.chase+=dt;
+    if(n.chase>25){n.state='return';n.atk=null;n.chase=0;n.rest=8} // chased long enough: give up and walk back to town
+    else{const want=Math.atan2(dx,dz);
      if(n.atk){const a=n.atk;a.t+=dt;n.f=lerpA(n.f,want,Math.min(1,dt*(a.t<.6?3:.5)));
       if(a.t<.6){arm=-1.6*(a.t/.6);aw=a.t/.6}else if(a.t<.78){arm=-1.6+.5*((a.t-.6)/.18);aw=1;if(!a.hit&&a.t>.64){a.hit=true;if(d<3.8&&Math.abs(((want-n.f+3*PI)%(2*PI))-PI)<1.1)hurt(13)}}
       else if(a.t<1.45){arm=-1.1*(1-(a.t-.78)/.67)}else{n.atk=null;n.cd=1}}
-     else{n.f=lerpA(n.f,want,Math.min(1,dt*6));if(d>2.7){sp=3.8}else if(n.cd<=0)n.atk={t:0,hit:false}}}}
-   else if(n.state=='flee'){n.fleeT-=dt;const w=Math.atan2(-dx,-dz);n.f=lerpA(n.f,w,Math.min(1,dt*8));sp=5;if(n.fleeT<=0){n.state='return'}}
-   else if(n.state=='return'){const hx=n.hx-n.x,hz=n.hz-n.z,hd=Math.hypot(hx,hz);if(hd<1.2){n.state=n.pat.length?'patrol':'idle'}else{n.f=lerpA(n.f,Math.atan2(hx,hz),Math.min(1,dt*6));sp=2.6}}
+     else{n.f=lerpA(n.f,d>8?aim(n,P.x,P.z):want,Math.min(1,dt*6));if(d>2.7){sp=3.8}else if(n.cd<=0)n.atk={t:0,hit:false}}}}
+   else if(n.state=='follow'){n.f=lerpA(n.f,d>7?aim(n,P.x,P.z):Math.atan2(dx,dz),Math.min(1,dt*5));if(d>9)sp=5.8;else if(d>6.2)sp=4.7;else if(d<3.8)sp=-1.6}
+   else if(n.state=='flee'){n.fleeT-=dt;n.f=lerpA(n.f,Math.atan2(-dx,-dz),Math.min(1,dt*8));sp=5;if(n.fleeT<=0)n.state='return'}
+   else if(n.state=='return'){const hx=n.hx-n.x,hz=n.hz-n.z,hd=Math.hypot(hx,hz);if(hd<1.2){n.state=n.pat.length?'patrol':'idle'}else{n.f=lerpA(n.f,aim(n,n.hx,n.hz),Math.min(1,dt*6));sp=4.2}}
    else if(n.state=='patrol'){const p=n.pat[n.pi],hx=p[0]-n.x,hz=p[1]-n.z,hd=Math.hypot(hx,hz);if(n.wait>0)n.wait-=dt;else if(hd<1){n.pi=(n.pi+1)%n.pat.length;n.wait=1.4}else{n.f=lerpA(n.f,Math.atan2(hx,hz),Math.min(1,dt*5));sp=1.6}}
-   else{n.f=lerpA(n.f,d<9?Math.atan2(dx,dz):n.hf,Math.min(1,dt*2))}
-   if(sp>0){n.x+=Math.sin(n.f)*sp*dt;n.z+=Math.cos(n.f)*sp*dt}
-   fcollide(n,.5);
+   else{const hx=n.hx-n.x,hz=n.hz-n.z,hd=Math.hypot(hx,hz),scared=n.k!='g'&&(n.grudge||level==2)&&d<(level==2?14:12); // villagers who were struck, or any villager while the watch is hunting you, keep their distance
+    if(scared){n.f=lerpA(n.f,Math.atan2(-dx,-dz),Math.min(1,dt*8));sp=3.4}
+    else if(hd>1.5){n.f=lerpA(n.f,Math.atan2(hx,hz),Math.min(1,dt*5));sp=2.2}
+    else n.f=lerpA(n.f,d<9?Math.atan2(dx,dz):n.hf,Math.min(1,dt*2))}
+   if(sp!=0){const ox=n.x,oz=n.z;n.x+=Math.sin(n.f)*sp*dt;n.z+=Math.cos(n.f)*sp*dt;fcollide(n,.5);n.mv+=Math.hypot(n.x-ox,n.z-oz);n.tw+=Math.abs(sp)*dt;if(n.tw>.6){if(n.mv<n.tw*.3){n.side=Math.random()<.5?-1:1;n.sideT=1.2}n.mv=n.tw=0}}else fcollide(n,.5);n.sideT-=dt;
    if(d<.9&&!P.dead){const k=.9-d;P.x+=dx/(d||1)*k;P.z+=dz/(d||1)*k}
-   n.ph+=sp*dt*2.4;const sw=sp>0?Math.sin(n.ph)*.7:0;n.legs[0].rotation.x=sw;n.legs[1].rotation.x=-sw;
+   n.ph+=Math.abs(sp)*dt*2.4;const sw=sp!=0?Math.sin(n.ph)*.7:0;n.legs[0].rotation.x=sw;n.legs[1].rotation.x=-sw;
    n.arms[0].rotation.x=-sw*.6+(n.k=='g'?0:.1);n.arms[1].rotation.x=n.atk?arm:sw*.6;
    g.position.set(n.x,H(n.x,n.z),n.z);g.rotation.y=n.f;g.scale.y=1+Math.sin(performance.now()*.002+n.ph)*.008;
    const f=n.flash>0;for(const m of n.mats){m.emissive.setHex(f?0xffffff:0xff3b2a);m.emissiveIntensity=f?.5:aw*.4}
    if(n.state!='hostile'&&n.state!='flee'&&d<nd){near=n;nd=d}}
+  if(td<260){tEl.style.display='block';tEl.style.color=LVC[level];tEl.textContent='RIMEHOLT \u00b7 '+LVN[level]}else tEl.style.display='none';
   cur=near;if(near){if(talkT>0)talkT-=dt;else{npcEl.innerHTML='<span style="color:#d8b56a">E</span> &mdash; speak with '+near.n}npcEl.style.display='block'}else{npcEl.style.display='none';talkT=0}}}
 
