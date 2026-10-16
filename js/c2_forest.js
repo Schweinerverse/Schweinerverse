@@ -56,7 +56,7 @@ function treehouse(x,z){const G=FT,top=G+34;FSITES.push([x,z,70]);
  for(let k=0;k<n;k++){const a=z0+k*dz,m=a+dz/2,t=hh(m);FST.push([x,(G+t)/2,m,6,t-G,dz+.05]);if(k%2==0){const b2=Math.min(z1,a+2*dz),lo=Math.min(hh(a),hh(b2)),hi=Math.max(hh(a),hh(b2));fcr(x-3,x+3,a,b2,lo-.6,G);fcr(x-3.4,x-3,a,b2,hi+2.2,lo+.2);fcr(x+3,x+3.4,a,b2,hi+2.2,lo+.2)}}}
 for(const t of THS)treehouse(t[0],t[1]);
 // ---- fallen giants, great stumps and root arches scattered through the forest ----
-{const near=(x,z,r)=>FSITES.some(s=>Math.hypot(x-s[0],z-s[1])<s[2]+r),free=(x,z,r)=>FM(x,z)>.95&&Math.hypot(x-TX,z-TZ)>140&&!near(x,z,r)&&!(x>TX+40&&Math.abs(z-FPATH(x))<r);
+{const near=(x,z,r)=>FSITES.some(s=>Math.hypot(x-s[0],z-s[1])<s[2]+r),free=(x,z,r)=>FM(x,z)>.95&&Math.hypot(x-TX,z-TZ)>140&&!near(x,z,r)&&!(x>TX+40&&Math.abs(z-FPATH(x))<r)&&dpl3(x,z)>r;
  for(let i=0,c=0;c<16&&i<600;i++){const x=-1560+R()*1000,z=-650+R()*1100,len=24+R()*38,r=2.2+R()*2.4,ang=R()*PI;if(!free(x,z,len*.6+10))continue;const g=H(x,z),m=new T.Mesh(new T.CylinderGeometry(r,r*1.1,len,10),barkM(3,len/8));m.rotation.set(0,ang,PI/2);fadd(m,x,g+r*.85,z);
   const dx=-Math.cos(ang),dz=Math.sin(ang);for(let t=-len/2+r;t<=len/2-r+.1;t+=r*1.3)fcc(x+dx*t,z+dz*t,r+.2,g+r*2.2,g-2);FSITES.push([x,z,len*.6]);c++}
  const ringT=(()=>{const cv=document.createElement('canvas');cv.width=cv.height=128;const g=cv.getContext('2d');g.fillStyle='#8a6b47';g.fillRect(0,0,128,128);for(let r=60;r>2;r-=5){g.strokeStyle='rgba(60,40,22,'+(.3+Math.random()*.3)+')';g.lineWidth=1+Math.random()*2;g.beginPath();g.arc(64,64,r,0,6.3);g.stroke()}return new T.CanvasTexture(cv)})();
@@ -68,8 +68,10 @@ for(const t of THS)treehouse(t[0],t[1]);
 // ---- the forest itself: GLB spruces (full model up close, cones in the distance) and the crown of the giant tree ----
 function buildForest(tgeo){const m4=new T.Matrix4(),q=new T.Quaternion(),e=new T.Euler(),cells={},cone=new T.ConeGeometry(.3,1,6),mlo=new T.MeshStandardMaterial({color:0x2c4637,roughness:1,flatShading:true});
  {const cm=new T.InstancedMesh(tgeo,tm,1);m4.compose(new T.Vector3(TX,FT+210,TZ),q,new T.Vector3(230,230,230));cm.setMatrixAt(0,m4);cm.frustumCulled=false;scene.add(cm)}
- let n=0;for(let i=0;i<40000&&n<5200;i++){const x=-1630+R()*1170,z=-710+R()*1170;if(FM(x,z)<.9||Math.hypot(x-TX,z-TZ)<125||(x>TX+40&&Math.abs(z-FPATH(x))<15)||FSITES.some(s=>Math.hypot(x-s[0],z-s[1])<s[2]))continue;const y=H(x,z);if(Math.abs(H(x+6,z)-y)>4.5||Math.abs(H(x,z+6)-y)>4.5)continue;
+ let n=0;for(let i=0;i<40000&&n<5200;i++){const x=-1630+R()*1170,z=-710+R()*1170;if(FM(x,z)<.9||Math.hypot(x-TX,z-TZ)<125||(x>TX+40&&Math.abs(z-FPATH(x))<15)||dpl3(x,z)<15||FSITES.some(s=>Math.hypot(x-s[0],z-s[1])<s[2]))continue;const y=H(x,z);if(Math.abs(H(x+6,z)-y)>4.5||Math.abs(H(x,z+6)-y)>4.5)continue;
   const s=14+R()*R()*24,k=Math.floor(x/100)+','+Math.floor(z/100);(cells[k]??=[]).push([x,y,z,s,R()*6.28]);(FTREES[Math.floor(x/FCH)+','+Math.floor(z/FCH)]??=[]).push([x,z,.05*s+.35]);n++}
+ for(let i=0,c=0;i<30000&&c<900;i++){const x=-1500+R()*900,z=-2150+R()*1500,d=dpl3(x,z);if(d<24||d>110||z>-720||Math.hypot(x-NWX,z-NWZ)<250)continue;const y=H(x,z);if(Math.abs(H(x+6,z)-y)>4.5||Math.abs(H(x,z+6)-y)>4.5)continue; // spruces along the Iron Road
+  const s=12+R()*R()*18,k=Math.floor(x/100)+','+Math.floor(z/100);(cells[k]??=[]).push([x,y,z,s,R()*6.28]);(FTREES[Math.floor(x/FCH)+','+Math.floor(z/FCH)]??=[]).push([x,z,.05*s+.35]);c++}
  for(const k in cells){const a=cells[k],hi=new T.InstancedMesh(tgeo,tm,a.length),lo=new T.InstancedMesh(cone,mlo,a.length);hi.frustumCulled=lo.frustumCulled=false;
   a.forEach((t,i)=>{e.set(0,t[4],0);q.setFromEuler(e);m4.compose(new T.Vector3(t[0],t[1]+t[3]*.35,t[2]),q,new T.Vector3(t[3],t[3],t[3]));hi.setMatrixAt(i,m4);lo.setMatrixAt(i,m4)});
   const [cx,cz]=k.split(',').map(Number);FCHUNKS.push({hi,lo,cx:(cx+.5)*100,cz:(cz+.5)*100});scene.add(hi);scene.add(lo)}}
