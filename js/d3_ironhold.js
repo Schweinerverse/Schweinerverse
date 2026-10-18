@@ -52,7 +52,8 @@
   for(const q of[[x0,z0,x1,z0+.8],[x0,z1-.8,x1,z1],[x0,z0,x0+.8,z1],[x1-.8,z0,x1,z1]])tbx(q[0],q[2],q[1],q[3],H_+1,H_+2.4,MST());
   for(const sx of[x0,x1])for(const sz of[z0,z1]){tcy(sx,sz,6.5,H_+8,mstR(8,4),true,0,16);const c=new T.Mesh(new T.ConeGeometry(8,7,16),MROOF);tadd(c,sx,H_+11.5,sz);const cs=new T.Mesh(new T.ConeGeometry(6.2,2,16),MSNW);tadd(cs,sx,H_+14,sz);glow(sx,H_+4,sz+(sz>z0?6.6:-6.6)*.98,.5)}
   for(const s of[-1,1]){const b=new T.Mesh(new T.BoxGeometry(.2,9,3.4),MCLO[0]);tadd(b,s*11,12,z1+.3)}const gl=new T.Mesh(new T.BoxGeometry(3.4,.2,.2),MGLD);tadd(gl,0,8.4,z1+.5);
-  tbx(-10,10,-120,-118.2,0,.95,MWD,true);tbx(-10,10,-124,-122.6,0,.5,MWD,true);tbx(-10,10,-114.6,-113.2,0,.5,MWD,true);tbx(-8,8,-140.4,-133,0,1.2,MST(),true);tbx(-1.3,1.3,-139.6,-137.4,1.2,3.4,MWD,true);tbx(-1.3,1.3,-140.2,-139.6,1.2,5.4,MWD);
+  for(const q of[[-120,-118.2,.95],[-124,-122.6,.5],[-114.6,-113.2,.5]])for(const sx of[-1,1])tbx(sx>0?3.5:-10,sx>0?10:-3.5,q[0],q[1],0,q[2],MWD,true); // long table and benches, with an aisle down the middle of the hall
+  tbx(-8,8,-140.4,-133,0,1.2,MST(),true);tbx(-1.3,1.3,-139.6,-137.4,1.2,3.4,MWD,true);tbx(-1.3,1.3,-140.2,-139.6,1.2,5.4,MWD);
   for(const q of[[-16,-100],[16,-100],[-16,-132],[16,-132]]){tcy(q[0],q[1],.8,.9,MST(),true);glow(q[0],1.2,q[1],.55);glow(q[0]+.2,1.7,q[1],.3)}
   for(const q of[-18,18]){tbx(q-.1,q+.1,-141,-140.4,3,9,MCLO[0])}}
  // ---- buildings: houses along the avenue, barracks, armoury, smithy, training yard ----
@@ -73,7 +74,7 @@
  {const d=new T.Object3D(),wi=new T.InstancedMesh(new T.BoxGeometry(.9,1.1,.14),MWIN,WIN.length);WIN.forEach((w,i)=>{d.position.set(NX+w[0],NY+w[1],NZ+w[2]);d.rotation.set(0,w[3],0);d.updateMatrix();wi.setMatrixAt(i,d.matrix)});wi.frustumCulled=false;scene.add(wi)}
  // ---- the garrison: strong guards in plate, captains, a few townsfolk, and patrols that tour the map ----
  const NPCS=[],npcEl=document.createElement('div');npcEl.style.cssText='position:fixed;left:50%;bottom:17%;transform:translateX(-50%);padding:10px 18px;background:rgba(14,20,30,.82);border:1px solid rgba(216,181,106,.5);color:#eef3f8;font:16px Georgia,serif;max-width:560px;text-align:center;pointer-events:none;z-index:4;display:none';document.body.appendChild(npcEl);
- let level=1,talkT=0,cur=null;
+ let level=1,talkT=0,cur=null,cmd=null,lastCmd;
  const LVN=['FRIENDLY','ALERT','AGGRESSIVE'],LVC=['#8fcf9a','#e0b44f','#d9503f'],tEl=document.createElement('div');tEl.style.cssText='font-size:12px;letter-spacing:.18em;margin-top:6px;display:none;text-shadow:0 1px 4px #000';$('hud').appendChild(tEl);
  // Ironhold never relaxes: ALERT from the start and forever; AGGRESSIVE only while the garrison hunts you
  const setLevel=l=>{if(l==level)return;level=l;if(Math.hypot(P.x-NX,P.z-NZ)<600)msg(l==1?'IRONHOLD IS ON ALERT':'IRONHOLD MARCHES',2600,l==1?'The garrison has given up the chase':'')};
@@ -101,35 +102,67 @@
  for(const q of[[-10,-107],[10,-107],[-14,-128],[14,-128]])G('Keep guard',q[0],q[1],0);
  G('Barracks guard',-80,50,0);G('Barracks guard',80,50,0);G('Barracks guard',-80,-10,0);
  G('Captain Vael',0,-129,0,{rank:'c',la:['I command this garrison. Remember it.','One blow struck here and you will not leave these walls alive.']});G('Captain Rurik',0,52,0,{rank:'c',la:['The Warden is watching you through my eyes.','Keep to the avenue, and keep your steel sheathed.']});
- const tf=(i,p)=>({tour:p.concat(p.slice(0,-1).reverse()),ti:0,wait:[20,70,130][i],off:0}),rx=z=>CX+35*Math.sin((z+470)*.013)*sm(CZ+170,CZ+330,z),out=[[NX,NZ+215]].concat(RD3.slice(0,-1).reverse());
- const tours=[out.concat([[-760,FPATH(-760)],[-900,FPATH(-900)],[-990,FPATH(-990)]]),out.concat([[-470,FPATH(-470)],[-250,10],[0,10],[150,80],[160,-90],[0,-130],[-150,-60],[-250,10]]),out.concat([[-470,FPATH(-470)],[-200,10],[rx(-300),-300],[rx(-520),-520],[rx(-650),-650],[rx(-760),-760]])];
- tours.forEach((p,i)=>{for(let j=0;j<3;j++)G('Iron patrol',(j-1)*4,160-i*12,0,Object.assign(tf(i,p),{la:PLN,off:(j-1)*2.6,wait:[20,70,130][i]+j*1.2}))});
+ const rx=z=>CX+35*Math.sin((z+470)*.013)*sm(CZ+170,CZ+330,z),out=[[NX,NZ+215]].concat(RD3.slice(0,-1).reverse()),fp=x=>[x,FPATH(x)],zp=x=>[x,zc1(x)];
+ // everywhere a patrol can be sent beyond the Iron Road: the forest trail, the basin, the marches and the pass
+ const forestB=[fp(-760),fp(-880),fp(-990)],basinB=[fp(-470),[-250,10],[0,10]],loopB=[[150,80],[160,-90],[0,-130],[-150,-60],[-250,10]],marchB=[[rx(-300),-300],[rx(-520),-520],[rx(-650),-650],[rx(-760),-760]],passB=[zp(300),zp(450),zp(600),zp(750),zp(900),zp(1000)];
+ const DST=[{name:'the forest trail',p:forestB.slice(0,1)},{name:'the giant tree',p:forestB},{name:'the edge of the basin',p:basinB.slice(0,1)},{name:'the Frostfall basin',p:basinB},{name:'a sweep around the basin',p:basinB.concat(loopB)},{name:'the Pale Marches',p:basinB.concat(marchB.slice(0,2))},{name:'the castle road',p:basinB.concat(marchB)},{name:'the Frostpass',p:basinB.concat(passB)}];
+ const toTour=p=>{const r=out.concat(p);return r.concat(r.slice(0,-1).reverse())};
+ for(let i=0;i<3;i++)for(let j=0;j<3;j++)G('Iron patrol',(j-1)*4,160-i*12,0,{la:PLN,party:i,tour:[],off:0,go:0,lw:0});
  C('Armourer Ysolde',76,-10,PI/2,0x5c4a3a,['Armour is for the garrison. Not for you.','Keep your hands off the racks.']);C('Smith Torvald',92,-58,PI,0x4a4038,['Steel for the watch only. Move along.','I would not linger here, stranger.']);
  C('Quartermaster Edda',-22,25,0,0x4d5a63,['Name, purpose, and how long you stay.','Everything here is counted, stranger.']);C('Merchant Bram',22,25,0,0x6e5f45,['I sell to the garrison. Not to strangers.','Keep your voice down. They listen.']);
  C('Chaplain Orin',22,9,PI,0x3a3f4a,['Pray quietly. The walls hear everything.','May the Warden find you harmless.']);C('Cook Maren',-90,38,0,0x6a5560,['Stew is for the barracks. Be gone.','Mind the guards. They mind you.']);
  for(const d of D){const m=mk(d),s=ST[d.rank||'g'],n=Object.assign({},d,{g:m.g,legs:m.legs,arms:m.arms,mats:m.mats,weapon:m.weapon,x:NX+d.x,z:NZ+d.z,f:d.f||0,hx:NX+d.x,hz:NZ+d.z,hf:d.f||0,hp:d.k=='g'?s.hp:40,st:s,sc:d.rank=='c'?1.12:1,
    state:d.tour?'rest':d.patrol?'patrol':'idle',pat:(d.patrol||[]).map(p=>[NX+p[0],NZ+p[1]]),pi:0,wait:d.wait||0,cd:0,flash:0,li:0,ph:Math.random()*6,dead:0,atk:null,fleeT:0,chase:0,rest:0,grudge:false,mv:0,tw:0,side:1,sideT:0,dy:d.dy0||0,halt:0,off:d.off||0});NPCS.push(n);scene.add(m.g)}
- const lines=n=>n.grudge?(n.k=='g'?['You again. I remember your face. Come closer and I finish it.','Ironhold does not forgive a blow to its garrison.']:['Get away from me!','You struck me. I will not forget it.']):level==2?['Please, put the blade away!','Guards! GUARDS!']:n.la;
+ const tourG=NPCS.filter(n=>n.party!==undefined),PARTIES=[0,1,2].map(i=>({i,m:tourG.filter(n=>n.party==i),ph:'rest',wait:[8,50,100][i],dest:-1,last:-1,t:0})),caps=NPCS.filter(n=>n.rank=='c'),commander=()=>caps.find(n=>!n.dead)||null,bub={t:0,who:null,txt:''};
+ const LOIT=[[0,140],[0,100],[0,60],[0,20],[-20,45],[20,45],[0,-40],[0,-70],[40,100],[-40,100],[60,10],[-60,30],[30,-40],[-30,-50],[12,160],[-12,160],[-25,5],[25,-5]];
+ // chain of command: Captain Vael leads, Captain Rurik is his replacement; once both are gone nobody leads
+ const back=n=>n.k=='g'&&!cmd&&n.free?'wander':'return',mad=n=>{if(n.state!='hostile')n.pre=n.state;n.state='hostile';n.atk=null;n.chase=0};
+ const stand=n=>{n.atk=null;n.chase=0;if(n.tour){if(n.pre=='tour'){n.state='tour';let b=0,bd=1e9;n.tour.forEach((p,i)=>{const e=Math.hypot(p[0]-n.x,p[1]-n.z);if(e<bd){bd=e;b=i}});n.ti=b}else{n.state='rest';n.go=0}}else n.state=back(n)};
+ const say=(c,t)=>{bub.t=9;bub.who=c;bub.txt='<b style="color:#d8b56a">'+c.n+'</b><br>'+t};
+ const briefRoute=()=>{const c=cmd,r=[[NX+10,NZ+130],[NX+10,NZ+45]];if(c.z<NZ-85)r.push([NX+8,NZ-60],[NX,NZ-97],[NX+13,NZ-104],[NX+13,NZ-127]);r.push([c.x+3,c.z+2.5]);return r};
+ const pickDest=p=>{const busy=PARTIES.map(q=>q.ph=='out'?q.dest:-1),c=DST.map((_,i)=>i).filter(i=>!busy.includes(i)&&i!=p.last);return c[Math.floor(Math.random()*c.length)]};
+ const scatter=init=>{for(const n of NPCS)if(n.k=='g'&&!n.rank&&!n.tour){n.free=Math.random()<.45;if(n.free&&(n.state=='idle'||n.state=='patrol'||n.state=='return')){n.state='wander';n.wp=null;n.ww=0}} // some guards simply drift off their posts
+  for(const n of tourG){n.lw=init?5+Math.random()*50:15+Math.random()*80;if(n.state=='brief'||n.state=='await')n.state='rest'}for(const p of PARTIES)if(p.ph=='brief')p.ph='rest'};
+ const cmdStep=dt=>{cmd=commander();bub.t-=dt;const near=Math.hypot(P.x-NX,P.z-NZ)<600;
+  if(lastCmd!==cmd){
+   if(lastCmd===undefined){if(!cmd)scatter(true)}
+   else if(cmd){if(near)msg('CAPTAIN '+cmd.n.split(' ')[1].toUpperCase()+' TAKES COMMAND',2800,'The garrison rallies to its new captain');const v=caps[0];cmd.hx=v.hx;cmd.hz=v.hz;cmd.hf=v.hf;if(cmd.state=='idle')cmd.state='return';
+    for(const p of PARTIES)if(p.ph=='brief'){p.ph='rest';p.wait=6+Math.random()*10;for(const n of p.m)if(n.state=='brief'||n.state=='await')n.state='rest'}}
+   else{if(near)msg('IRONHOLD IS LEADERLESS',3000,'Discipline breaks down');scatter(false)}
+   lastCmd=cmd}
+  const home=n=>Math.hypot(n.x-n.hx,n.z-n.hz)<4;
+  for(const p of PARTIES){const al=p.m.filter(n=>!n.dead);if(!al.length)continue; // with a captain, each party reports to him, gets its orders, and marches
+   if(p.ph=='out'){if(al.every(n=>n.state=='rest'&&home(n))){p.ph='rest';p.last=p.dest;p.dest=-1;p.wait=60+Math.random()*60}}
+   else if(!cmd)p.ph='rest';
+   else if(p.ph=='rest'){if(al.every(n=>n.state=='rest'&&home(n)&&!(n.go>0))){p.wait-=dt;if(p.wait<=0){p.ph='brief';p.t=0;for(const n of al){n.state='brief';n.route=briefRoute();n.bi=0;n.go=0}}}}
+   else if(p.ph=='brief'){p.t+=dt;const act=al.filter(n=>n.state=='brief'||n.state=='await');
+    if(!act.length){p.ph='rest';p.wait=40+Math.random()*40}
+    else if(act.every(n=>n.state=='await')||p.t>90){const di=pickDest(p),r=toTour(DST[di].p);act.forEach((n,k)=>{n.tour=r;n.ti=0;n.off=(k-(act.length-1)/2)*2.6;n.state='await';n.go=3.5+k*.9});p.dest=di;p.ph='out';say(cmd,'Patrol: to '+DST[di].name+'. Keep to the roads, report anything that moves, and be back before dark.')}}}
+  if(!cmd)for(const n of tourG){ // leaderless: patrols leave when they please, in squads of any size, for anywhere
+   if(n.dead||n.state!='rest'||n.go>0||!home(n))continue;n.lw-=dt;
+   if(n.lw<=0){const sq=[n];for(const o of tourG)if(o!==n&&!o.dead&&o.state=='rest'&&!(o.go>0)&&home(o)&&sq.length<5&&Math.random()<.45)sq.push(o);
+    const d=DST[Math.floor(Math.random()*DST.length)],r=toTour(d.p.slice(0,1+Math.floor(Math.random()*d.p.length)));sq.forEach((s,k)=>{s.tour=r;s.ti=0;s.off=(Math.random()-.5)*6;s.go=.6+k*1.1;s.lw=60+Math.random()*120})}}};
+ const lines=n=>n.grudge?(n.k=='g'?['You again. I remember your face. Come closer and I finish it.','Ironhold does not forgive a blow to its garrison.']:['Get away from me!','You struck me. I will not forget it.']):level==2?['Please, put the blade away!','Guards! GUARDS!']:(!cmd&&n.k=='g')?['There is no captain left. Do not make this worse.','Orders? Nobody gives orders now.']:n.la;
  const hit=dm=>{let struck=null;for(const n of NPCS){if(n.dead||n.dy>6)continue;const ox=n.x-P.x,oz=n.z-P.z,dd=Math.hypot(ox,oz);if(dd<3.9&&(ox*Math.sin(P.face)+oz*Math.cos(P.face))/dd>.3){struck=n;n.hp-=dm;n.flash=.2;n.grudge=true;stop=Math.max(stop,dm>50?.13:.07);shake=Math.max(shake,dm>50?.5:.25);
-   if(n.k=='g'){n.state='hostile';n.atk=null;n.chase=0}else{n.state='flee';n.fleeT=7}
+   if(n.k=='g')mad(n);else{n.state='flee';n.fleeT=7}
    if(n.hp<=0){n.dead=.01;n.state='dead'}}}
-  if(struck){const inside=ins(struck.x,struck.z),was=level;for(const q of NPCS)if(q.k=='g'&&!q.dead&&q.state!='hostile'&&((inside&&ins(q.x,q.z))||Math.hypot(q.x-struck.x,q.z-struck.z)<150)){q.state='hostile';q.atk=null;q.chase=0;q.dy=Math.min(q.dy,6)} // the garrison answers a blow in town; a patrol answers one on the road
+  if(struck){const inside=ins(struck.x,struck.z),was=level;for(const q of NPCS)if(q.k=='g'&&!q.dead&&q.state!='hostile'&&((inside&&ins(q.x,q.z))||Math.hypot(q.x-struck.x,q.z-struck.z)<150)){mad(q);q.dy=Math.min(q.dy,6)} // the garrison answers a blow in town; a patrol answers one on the road
    if(inside){level=2;if(was<2)msg('THE GARRISON TURNS ON YOU',2400,'You struck first')}else msg('THE PATROL ATTACKS',2000);if(typeof saveGame=='function')saveGame()}};
  const talk=()=>{if(!cur||cur.dead)return;talkT=6;const L=lines(cur);npcEl.innerHTML='<b style="color:#d8b56a">'+cur.n+'</b><br>'+L[cur.li++%L.length];npcEl.style.display='block'};
  const save=()=>({lv:level,at:0,n:NPCS.map(n=>[n.hp,n.dead?1:0,n.grudge?1:0,n.dead?+n.x.toFixed(1):0,n.dead?+n.z.toFixed(1):0,n.dead?+n.f.toFixed(2):0])});
  const load=s=>{if(!s||!Array.isArray(s.n)||s.n.length!=NPCS.length)return;level=1;s.n.forEach((a,i)=>{const n=NPCS[i];n.hp=a[0];n.grudge=!!a[2];if(a[1]){n.dead=1;n.state='dead';n.x=a[3];n.z=a[4];n.f=a[5]}})};
- const upd=dt=>{const td=Math.hypot(P.x-NX,P.z-NZ),inTown=td<R_-4;let near=null,nd=4.5;
+ const upd=dt=>{cmdStep(dt);const td=Math.hypot(P.x-NX,P.z-NZ),inTown=td<R_-4;let near=null,nd=4.5;
   if(level==2&&!NPCS.some(n=>n.k=='g'&&!n.dead&&n.state=='hostile'))setLevel(1);
   const fols=NPCS.filter(n=>n.state=='follow'); // on alert, two guards shadow you inside the walls
   if(level==1&&inTown&&!P.dead){while(fols.length<2){let b=null,bd=1e9;for(const n of NPCS)if(n.k=='g'&&!n.dead&&!n.tour&&n.dy<6&&(n.state=='patrol'||n.state=='idle'||n.state=='return')&&!fols.includes(n)){const d=Math.hypot(P.x-n.x,P.z-n.z);if(d<bd){bd=d;b=n}}if(!b)break;b.state='follow';b.atk=null;fols.push(b)}}
-  else for(const f of fols)f.state='return';
+  else for(const f of fols)f.state=back(f);
   for(const n of NPCS){const dx=P.x-n.x,dz=P.z-n.z,d=Math.hypot(dx,dz),g=n.g,st=n.st;n.flash=Math.max(0,n.flash-dt);n.cd-=dt;n.rest-=dt;
    if(n.dead){n.dead=Math.min(1,n.dead+dt*1.4);g.rotation.x=-n.dead*PI/2*.98;g.position.set(n.x,H(n.x,n.z)+.15*n.dead+n.dy,n.z);for(const m of n.mats){m.emissive.setHex(0);m.emissiveIntensity=0}continue}
    let sp=0,aw=0,arm=0;
-   if(P.dead&&(n.state=='hostile'||n.state=='follow')){n.state=n.tour?'rest':'return';n.atk=null}
-   if(n.k=='g'&&n.grudge&&n.rest<=0&&d<28&&!P.dead&&n.state!='hostile'&&n.state!='flee'&&n.dy<6){n.state='hostile';n.atk=null;n.chase=0}
+   if(P.dead&&(n.state=='hostile'||n.state=='follow'))stand(n);
+   if(n.k=='g'&&n.grudge&&n.rest<=0&&d<28&&!P.dead&&n.state!='hostile'&&n.state!='flee'&&n.dy<6)mad(n);
    if(n.state=='hostile'){if(d<4)n.chase=0;else n.chase+=dt;
-    if(n.chase>25){n.atk=null;n.chase=0;n.rest=8;if(n.tour){n.state='tour';let b=0,bd=1e9;n.tour.forEach((p,i)=>{const e=Math.hypot(p[0]-n.x,p[1]-n.z);if(e<bd){bd=e;b=i}});n.ti=b}else n.state='return'} // chased long enough: give up
+    if(n.chase>25){n.rest=8;stand(n)} // chased long enough: give up
     else{const want=Math.atan2(dx,dz),W=st.wind;
      if(n.atk){const a=n.atk;a.t+=dt;n.f=lerpA(n.f,want,Math.min(1,dt*(a.t<W?3:.5)));
       if(a.t<W){arm=-1.6*(a.t/W);aw=a.t/W}else if(a.t<W+.18){arm=-1.6+.5*((a.t-W)/.18);aw=1;if(!a.hit&&a.t>W+.04){a.hit=true;if(d<3.9&&Math.abs(((want-n.f+3*PI)%(2*PI))-PI)<1.1)hurt(st.dmg)}}
@@ -140,11 +173,15 @@
    else if(n.state=='return'){const hx=n.hx-n.x,hz=n.hz-n.z,hd=Math.hypot(hx,hz);if(hd<1.2){n.state=n.pat.length?'patrol':'idle'}else{n.f=lerpA(n.f,aim(n,n.hx,n.hz),Math.min(1,dt*6));sp=4.2}}
    else if(n.state=='patrol'){const p=n.pat[n.pi],hx=p[0]-n.x,hz=p[1]-n.z,hd=Math.hypot(hx,hz);if(n.wait>0)n.wait-=dt;else if(hd<1){n.pi=(n.pi+1)%n.pat.length;n.wait=1.4}else{n.f=lerpA(n.f,Math.atan2(hx,hz),Math.min(1,dt*5));sp=1.8}}
    else if(n.state=='rest'){const hx=n.hx-n.x,hz=n.hz-n.z,hd=Math.hypot(hx,hz); // waiting in the garrison between patrols
-    if(hd>2){n.f=lerpA(n.f,aim(n,n.hx,n.hz),Math.min(1,dt*5));sp=3.2}else{n.wait-=dt;n.f=lerpA(n.f,d<30?Math.atan2(dx,dz):n.hf,Math.min(1,dt*2));if(n.wait<=0){n.state='tour';n.ti=0}}}
+    if(hd>2){n.f=lerpA(n.f,aim(n,n.hx,n.hz),Math.min(1,dt*5));sp=3.2}else n.f=lerpA(n.f,d<30?Math.atan2(dx,dz):n.hf,Math.min(1,dt*2));
+    if(n.go>0){n.go-=dt;if(n.go<=0){n.state='tour';n.ti=0}}}
+   else if(n.state=='brief'){const w=n.route[n.bi];if(!w)n.state='await';else{const hx=w[0]-n.x,hz=w[1]-n.z;if(Math.hypot(hx,hz)<2.5){n.bi++;if(n.bi>=n.route.length)n.state='await'}else{n.f=lerpA(n.f,aim(n,w[0],w[1]),Math.min(1,dt*5));sp=4.2}}} // reporting to the captain for orders
+   else if(n.state=='await'){n.f=lerpA(n.f,cmd?Math.atan2(cmd.x-n.x,cmd.z-n.z):n.hf,Math.min(1,dt*3));if(n.go>0){n.go-=dt;if(n.go<=0){n.state='tour';n.ti=0}}}
+   else if(n.state=='wander'){if(!n.wp||Math.hypot(n.wp[0]-n.x,n.wp[1]-n.z)<1.5){if(n.ww>0)n.ww-=dt;else{const s=LOIT[Math.floor(Math.random()*LOIT.length)];n.wp=[NX+s[0],NZ+s[1]];n.ww=4+Math.random()*18}}else{n.f=lerpA(n.f,aim(n,n.wp[0],n.wp[1]),Math.min(1,dt*4));sp=1.5}} // no post to keep, no one to answer to
    else if(n.state=='tour'){const p=n.tour[n.ti],tx=p[0]+n.off,tz=p[1],hd=Math.hypot(tx-n.x,tz-n.z); // march the route: out through the gate, around the map, and back
     if(d<16&&!P.dead)n.halt+=dt;else n.halt=0;
     if(d<16&&!P.dead&&n.halt<10)n.f=lerpA(n.f,Math.atan2(dx,dz),Math.min(1,dt*4)); // halt and eye any traveller they meet
-    else if(hd<5){n.ti++;if(n.ti>=n.tour.length){n.state='rest';n.wait=60+Math.random()*60}}
+    else if(hd<5){n.ti++;if(n.ti>=n.tour.length){n.state='rest';n.go=0;n.lw=20+Math.random()*80}}
     else{n.f=lerpA(n.f,aim(n,tx,tz),Math.min(1,dt*4));sp=3.2}}
    else{const hx=n.hx-n.x,hz=n.hz-n.z,hd=Math.hypot(hx,hz),scared=n.k!='g'&&(n.grudge||level==2)&&d<(level==2?14:12);
     if(scared){n.f=lerpA(n.f,Math.atan2(-dx,-dz),Math.min(1,dt*8));sp=3.4}
@@ -158,8 +195,8 @@
    g.position.set(n.x,H(n.x,n.z)+n.dy,n.z);g.rotation.y=n.f;g.scale.set(n.sc,n.sc*(1+Math.sin(performance.now()*.002+n.ph)*.008),n.sc);
    const f=n.flash>0;for(const m of n.mats){m.emissive.setHex(f?0xffffff:0xff3b2a);m.emissiveIntensity=f?.5:aw*.4}
    if(n.state!='hostile'&&n.state!='flee'&&n.dy<6&&d<nd){near=n;nd=d}}
-  if(td<300){tEl.style.display='block';tEl.style.color=LVC[level];tEl.textContent='IRONHOLD \u00b7 '+LVN[level]}else tEl.style.display='none';
-  cur=near;if(near){if(talkT>0)talkT-=dt;else{npcEl.innerHTML='<span style="color:#d8b56a">E</span> &mdash; speak with '+near.n}npcEl.style.display='block'}else{npcEl.style.display='none';talkT=0}};
+  if(td<300){tEl.style.display='block';tEl.style.color=LVC[level];tEl.textContent='IRONHOLD \u00b7 '+LVN[level]+(cmd?'':' \u00b7 NO LEADER')}else tEl.style.display='none';
+  cur=near;if(near){if(talkT>0)talkT-=dt;else{npcEl.innerHTML='<span style="color:#d8b56a">E</span> &mdash; speak with '+near.n}npcEl.style.display='block'}else if(bub.t>0&&bub.who&&Math.hypot(P.x-bub.who.x,P.z-bub.who.z)<22){npcEl.innerHTML=bub.txt;npcEl.style.display='block';talkT=0}else{npcEl.style.display='none';talkT=0}}; // the captain's orders can be overheard nearby
  {const u0=window.npcUpdate,h0=window.hitNPCs,t0=window.npcTalk,s0=window.townSave,l0=window.townLoad;
   window.npcUpdate=dt=>{u0(dt);upd(dt)};window.hitNPCs=dm=>{h0(dm);hit(dm)};window.npcTalk=()=>{t0();talk()};
   window.townSave=()=>{const o=s0();o.w=save();return o};window.townLoad=s=>{l0(s);if(s&&s.w)load(s.w)}}}
