@@ -10,7 +10,7 @@ const SUN=new T.Vector3(-.55,.4,.45).normalize(),SV=SUN.toArray().map(x=>x.toFix
  float sgl=pow(max(dot(normalize(vFogDir),vec3(${SV})),0.),5.);
  gl_FragColor.rgb=mix(gl_FragColor.rgb,mix(fogColor,vec3(1.,.84,.64),sgl*.6),fogFactor);
 #endif`}}
-const LIM=575,WL=1700,XMAX=2540,ZN=2600,CX=-60,CZ=-980,PL=10,TX=-1060,TZ=-40,FT=6,TWX=2150,TWZ=-2250,TWH=5,NWX=-1250,NWZ=-2250,NWH=10; // castle centre and plateau height
+const LIM=1440,WL=1700,XMAX=2540,ZN=2600,CX=-60,CZ=-980,PL=10,TX=-1060,TZ=-40,FT=6,TWX=2150,TWZ=-2250,TWH=5,NWX=-1250,NWZ=-2250,NWH=10,CSX=0,CSZ=1000,CYH=5,SEA=-3; // castle centre and plateau height
 const H0=(x,z)=>{const f=Math.min(1,Math.max(0,(Math.hypot(x,z)-25)/60));return f*(Math.sin(x*.012)*Math.cos(z*.015)*7+Math.sin(x*.035+z*.022)*2.2+Math.sin(z*.06)*Math.sin(x*.05)*.8)};
 const sm=(a,b,x)=>{x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x)};
 const hsh=(x,z)=>{let h=Math.imul(x,374761393)+Math.imul(z,668265263);h=Math.imul(h^(h>>>13),1274126177);return((h^(h>>>16))>>>0)/4294967295};
@@ -42,9 +42,17 @@ const THS=[[-760,-190],[-905,230],[-1290,-310],[-1240,290]];
 const RD3=[[-640,FPATH(-640)],[-650,-250],[-720,-520],[-900,-760],[-1100,-1050],[-1200,-1500],[-1250,-1900],[NWX,NWZ]];
 const dpl3=(x,z)=>{let b=1e9;for(let i=0;i<RD3.length-1;i++){const a=RD3[i],c=RD3[i+1],vx=c[0]-a[0],vz=c[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*vx+(z-a[1])*vz)/(vx*vx+vz*vz))),d=Math.hypot(x-a[0]-vx*t,z-a[1]-vz*t);if(d<b)b=d}return b};
 const nwd=(x,z)=>Math.min(dpl3(x,z),Math.max(0,Math.hypot(x-NWX,z-NWZ)-150));
-const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-1600)/100,(x-2450)/100,(z-480)/100,(-z-2500)/100,Math.max(0,(-z-700)/100)*sm(-520,-620,x)*(x<-500&&z<-600?sm(100,420,nwd(x,z)):1)));
+// the South Road from the basin to Brightwater on the southern coast; the mountain wall opens onto a coastal plain around it
+const RD4=[[0,300],[0,450],[25,620],[10,760],[0,800],[CSX,CSZ]];
+const dpl4=(x,z)=>{let b=1e9;for(let i=0;i<RD4.length-1;i++){const a=RD4[i],c=RD4[i+1],vx=c[0]-a[0],vz=c[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*vx+(z-a[1])*vz)/(vx*vx+vz*vz))),d=Math.hypot(x-a[0]-vx*t,z-a[1]-vz*t);if(d<b)b=d}return b};
+const swd=(x,z)=>Math.min(dpl4(x,z),Math.max(0,(Math.hypot(x/760,(z-1060)/380)-1)*380));
+const zcoast=x=>1290+50*Math.min(1,(x/700)*(x/700));
+const H=(x,z)=>{const e=Math.min(3,Math.max(0,(-x-1600)/100,(x-2450)/100,(z>400?Math.max(0,(z-480)/100)*sm(60,330,swd(x,z)):0),(-z-2500)/100,Math.max(0,(-z-700)/100)*sm(-520,-620,x)*(x<-500&&z<-600?sm(100,420,nwd(x,z)):1)));
  let h=H0(x,z)+e*e*45*(1+.4*Math.sin(x*.045+z*.03)*Math.cos(z*.05))+MTN(x,z)+NH(x,z)+FM(x,z)*(n2(x*.005+9,z*.005+1)-.5)*30;const w=1-sm(215,330,Math.max(Math.abs(x-CX),Math.abs(z-CZ)));h+=(PL-h)*w;
- h+=(FT-h)*(1-sm(70,150,Math.hypot(x-TX,z-TZ)));for(const t of THS)h+=(FT-h)*(1-sm(62,100,Math.hypot(x-t[0],z-t[1])));h+=(TWH-h)*(1-sm(150,260,Math.hypot(x-TWX,z-TWZ)));h+=(NWH-h)*(1-sm(240,340,Math.hypot(x-NWX,z-NWZ)));return h};
+ h+=(FT-h)*(1-sm(70,150,Math.hypot(x-TX,z-TZ)));for(const t of THS)h+=(FT-h)*(1-sm(62,100,Math.hypot(x-t[0],z-t[1])));h+=(TWH-h)*(1-sm(150,260,Math.hypot(x-TWX,z-TWZ)));h+=(NWH-h)*(1-sm(240,340,Math.hypot(x-NWX,z-NWZ)));
+ h+=(CYH-h)*(1-sm(320,440,Math.hypot((x-CSX)/1.55,z-CSZ))); // Brightwater's broad coastal terrace, then a beach and the open sea
+ if(z>1100){const t=z-zcoast(x),cw=sm(-80,-60,t);if(cw>0){const pf=t<-60?CYH:t<0?CYH+(SEA-CYH)*sm(-60,0,t):SEA-.22*t;h+=(pf-h)*cw}}
+ return h};
 const R=Math.random;
 const scene=new T.Scene();scene.background=new T.Color(0xb9c6d3);scene.fog=new T.FogExp2(0xb9c6d3,.017);const uT={value:0};
 const cam=new T.PerspectiveCamera(65,innerWidth/innerHeight,.2,3500);
@@ -69,7 +77,7 @@ const sky=new T.Mesh(new T.SphereGeometry(700,32,16),new T.ShaderMaterial({side:
 sky.renderOrder=-1;sky.frustumCulled=false;scene.add(sky);
 
 // terrain
-const tg=new T.PlaneGeometry(4600,3500,630,480);tg.rotateX(-PI/2);tg.translate(400,0,-1050);
+const tg=new T.PlaneGeometry(4600,4280,630,586);tg.rotateX(-PI/2);tg.translate(400,0,-660);
 const tp=tg.attributes.position;for(let i=0;i<tp.count;i++)tp.setY(i,H(tp.getX(i),tp.getZ(i)));
 tg.computeVertexNormals();
 {const nA=tg.attributes.normal,col=new Float32Array(tp.count*3);
@@ -94,6 +102,11 @@ tg.computeVertexNormals();
   {const nd=Math.hypot(x-NWX,z-NWZ),rd=x<-500&&z<-600?dpl3(x,z):1e9; // Ironhold: packed earth and grey stone underfoot, and the Iron Road leading to it
    if(nd<250){const k=.7*(1-sm(190,250,nd)),v=.8+.25*n2(x*.3,z*.3);r+=(.4*v-r)*k;g+=(.4*v-g)*k;b+=(.42*v-b)*k}
    if(rd<5){const f=1-sm(3,5,rd);r+=(.4-r)*f*.85;g+=(.36-g)*f*.85;b+=(.32-b)*f*.85}}
+  if(z>300){const cd=Math.hypot((x-CSX)/1.55,z-CSZ),rd=dpl4(x,z),tc=z-zcoast(x); // Brightwater: its paved ground, the South Road, sand and shingle, foam and the sea floor
+   if(cd<430){const k=.75*(1-sm(330,430,cd)),v=.82+.2*n2(x*.3,z*.3);r+=(.46*v-r)*k;g+=(.43*v-g)*k;b+=(.4*v-b)*k}
+   if(rd<5){const f=1-sm(3,5,rd);r+=(.44-r)*f*.85;g+=(.4-g)*f*.85;b+=(.36-b)*f*.85}
+   if(tc>-70){const sd=sm(-70,-45,tc),sr=.76+.05*n2(x*.4,z*.4),sg=.72+.04*n2(x*.4,z*.4);r+=(sr-r)*sd;g+=(sg-g)*sd;b+=(.63-b)*sd;
+    if(tc>0){const dk=sm(0,6,tc),w=.2+.03*n2(x*.2,z*.2);r+=(w*.8-r)*dk;g+=(w*1.15-g)*dk;b+=(w*1.25-b)*dk}const fo=Math.max(0,1-Math.abs(tc+1)/3)*.7;r+=(1-r)*fo;g+=(1-g)*fo;b+=(1-b)*fo}}
   col[i*3]=r;col[i*3+1]=g;col[i*3+2]=b}
  tg.setAttribute('color',new T.BufferAttribute(col,3))}
 // ground: a tiling canvas texture (snow drifts, ripples, flecks) used as colour AND bump map, so the snow has visible grain at any distance
@@ -102,7 +115,7 @@ const gt=(()=>{const S=512,c=document.createElement('canvas');c.width=c.height=S
  for(let i=0;i<260;i++){const x=Math.random()*S,y=Math.random()*S,r=14+Math.random()*46,v=Math.random()<.5?255:140,a=.06+Math.random()*.12;wrap((ox,oy)=>{const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,r);gr.addColorStop(0,'rgba('+v+','+v+','+(v+6)+','+a+')');gr.addColorStop(1,'rgba('+v+','+v+','+(v+6)+',0)');g.fillStyle=gr;g.fillRect(x+ox-r,y+oy-r,2*r,2*r)})}
  for(let i=0;i<14;i++){const y=Math.random()*S;g.strokeStyle='rgba(255,255,255,.2)';g.lineWidth=2+Math.random()*3;g.beginPath();for(let x=0;x<=S;x+=16){const yy=y+Math.sin(x/S*PI*6+i)*9;if(x==0)g.moveTo(x,yy);else g.lineTo(x,yy)}g.stroke()}
  for(let i=0;i<5200;i++){const v=Math.random()<.35?255:110+Math.random()*60|0;g.fillStyle='rgba('+v+','+v+','+(v+8)+','+(.1+Math.random()*.18)+')';g.fillRect(Math.random()*S,Math.random()*S,1+Math.random()*2,1+Math.random()*2)}
- const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(4600/22,3500/22);t.anisotropy=8;return t})();
+ const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(4600/22,4280/22);t.anisotropy=8;return t})();
 const gm=new T.MeshStandardMaterial({color:0xe9eff6,roughness:.9,vertexColors:true,map:gt,bumpMap:gt,bumpScale:2.2});
 const ground=new T.Mesh(tg,gm);ground.receiveShadow=true;scene.add(ground);
 
