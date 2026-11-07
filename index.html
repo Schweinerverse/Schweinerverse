@@ -41,9 +41,10 @@ canvas{display:block}
 <script src="js/c2_forest.js"></script>
 <script src="js/d_snow_player.js"></script>
 <script src="js/d2_town.js"></script>
-<script src="js/d3_ironhold.js"></script>
-<script>/* Brightwater ships as four fragments of one script; join them synchronously so it runs in order, before e_ and f_ */
-(function(){var t='',f=['js/d4_a.js','js/d4_b.js','js/d4_c.js','js/d4_d.js'];for(var i=0;i<f.length;i++){var x=new XMLHttpRequest();x.open('GET',f[i],false);x.send();if(!(x.status===200||(x.status===0&&x.responseText)))throw new Error('Brightwater: could not load '+f[i]);t+=x.responseText}var s=document.createElement('script');s.text=t;document.body.appendChild(s)})();</script>
+<script>/* Ironhold and Brightwater are loaded here, each inside its own function scope: both define a helper called mk, which would clash with the castle's global mk if they ran as plain scripts. Brightwater ships as four fragments that are joined first. Synchronous, so everything still runs in order before e_ and f_. */
+(function(){function get(f){var x=new XMLHttpRequest();x.open('GET',f,false);x.send();if(!(x.status===200||(x.status===0&&x.responseText)))throw new Error('could not load '+f);return x.responseText}
+function run(t){var s=document.createElement('script');s.text='(function(){\n'+t+'\n})();';document.body.appendChild(s)}
+run(get('js/d3_ironhold.js'));run(['a','b','c','d'].map(function(k){return get('js/d4_'+k+'.js')}).join(''))})();</script>
 <script src="js/e_enemy_combat.js"></script>
 <script src="js/f_loop_input.js"></script>
 </body></html>
