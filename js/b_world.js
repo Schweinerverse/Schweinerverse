@@ -5,17 +5,10 @@ const place=(mesh,n,fn)=>{const m=new T.Matrix4(),q=new T.Quaternion(),e=new T.E
  scene.add(mesh)};
 // spruce trees from Spruce1.glb (decimated), chunked instancing
 const tm=new T.MeshStandardMaterial({color:0x3c5a4c,roughness:1,side:T.DoubleSide});
-async function loadTree(){
- const ab=await (await fetch('tree.glb')).arrayBuffer(),dv=new DataView(ab),jl=dv.getUint32(12,true);
- const js=JSON.parse(new TextDecoder().decode(new Uint8Array(ab,20,jl))),bo=20+jl+8,bv=js.bufferViews,nv=js.accessors[1].count;
- const F=(i,C,n)=>new C(ab,bo+bv[i].byteOffset,n),g=new T.BufferGeometry();
- g.setAttribute('position',new T.BufferAttribute(F(1,Float32Array,nv*3),3));
- g.setAttribute('uv',new T.BufferAttribute(F(2,Float32Array,nv*2),2));
- g.setAttribute('normal',new T.BufferAttribute(F(3,Float32Array,nv*3),3));
- g.setIndex(new T.BufferAttribute(F(0,Uint16Array,js.accessors[0].count),1));
- const url=URL.createObjectURL(new Blob([new Uint8Array(ab,bo+bv[4].byteOffset,bv[4].byteLength)],{type:'image/jpeg'}));
- new T.TextureLoader().load(url,t=>{t.flipY=false;tm.map=t;tm.color.set(0xffffff);tm.needsUpdate=true});
- return g}
+async function loadTree(){ // geometry and texture come straight from tree.glb via GLTFLoader; the game keeps its own material (wind, snow dusting, light tweaks)
+ const m=(await new Promise((ok,no)=>new T.GLTFLoader().load('tree.glb',ok,undefined,no))).scene.getObjectByProperty('isMesh',true),t=m.material.map;
+ t.encoding=T.LinearEncoding; // the game has always sampled this texture as linear (GLTFLoader tags it sRGB, which would darken the trees)
+ tm.map=t;tm.color.set(0xffffff);tm.needsUpdate=true;return m.geometry}
 tm.onBeforeCompile=sh=>{sh.uniforms.uT=uT;
  sh.vertexShader='uniform float uT;varying float vTy;\n'+sh.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
  vTy=transformed.y;float sw=max(transformed.y+.5,0.);sw*=sw;vec4 iw=instanceMatrix*vec4(transformed,1.);
